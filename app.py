@@ -38,12 +38,11 @@ if "last_processed_query" not in st.session_state:
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# DEBUG: Print .env loading and contents
+# Load environment variables from .env file
 load_dotenv(verbose=True)
 logger.info(f"POSTGRES_CONNECTION from env: {os.getenv('POSTGRES_CONNECTION')}")
-# Explicitly set the connection string with proper password
-os.environ['POSTGRES_CONNECTION'] = 'postgresql://postgres:password@127.0.0.1:5432/knowledge_base'
-logger.info(f"Updated POSTGRES_CONNECTION: {os.getenv('POSTGRES_CONNECTION')}")
+# Removed hardcoded database connection override to use the .env setting
+logger.info(f"Using POSTGRES_CONNECTION: {os.getenv('POSTGRES_CONNECTION')}")
 
 # --- Configuration Loading & Caching ---
 
