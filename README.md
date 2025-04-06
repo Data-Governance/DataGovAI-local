@@ -1,10 +1,12 @@
-# 🧠 Knowledge Base Agent for Utah GRS
+# 🧠 DataGovAI - Utah GRS Knowledge Base Agent
 
-A powerful RAG (Retrieval-Augmented Generation) based knowledge base agent specifically designed for Utah's General Retention Schedules (GRS). This system helps government entities efficiently access and understand record retention requirements and related policies.
+A proprietary knowledge base agent developed by the Utah Office of Data Privacy (ODP) for processing and managing Utah's General Retention Schedules (GRS). This system helps government entities efficiently access and understand record retention requirements and related policies.
 
 ## 🎯 Project Context
 
-This Knowledge Base Agent is part of the **DataGovAI** platform, a collaboration between Utah Valley University's Smith College of Engineering and Technology and the Utah Office of Data Privacy (ODP). The system processes and provides intelligent access to Utah's General Retention Schedules, helping government entities maintain compliance with state records management requirements.
+DataGovAI is a proprietary platform developed by the Utah Office of Data Privacy (ODP) in collaboration with Utah Valley University's Smith College of Engineering and Technology. The system processes and provides intelligent access to Utah's General Retention Schedules, helping government entities maintain compliance with state records management requirements.
+
+Copyright © 2025 Utah Office of Data Privacy (ODP). All Rights Reserved.
 
 ## ✨ Features
 

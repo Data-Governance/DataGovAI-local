@@ -1,5 +1,6 @@
 """
-Setup configuration for the Generic AI Agent package.
+DataGovAI - Utah GRS Knowledge Base Agent
+Copyright (c) 2025 Utah Office of Data Privacy (ODP). All Rights Reserved.
 """
 
 from setuptools import setup, find_packages
@@ -33,20 +34,20 @@ dev_requires = [
 setup(
     name="datagovai",
     version="1.0.0",
-    author="Utah Valley University",
-    author_email="your.email@uvu.edu",
-    description="A RAG-based Knowledge Base Agent for Utah GRS",
+    author="Utah Office of Data Privacy",
+    author_email="privacy@utah.gov",  # Replace with actual ODP email
+    description="A proprietary knowledge base agent for Utah GRS",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/DataGovAI",
+    url="https://privacy.utah.gov",  # Replace with actual ODP website
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Government",
-        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3.10",
         "Topic :: Text Processing :: Indexing",
+        "Private :: Do Not Upload",  # Indicates this is not for public distribution
     ],
     python_requires=">=3.10",
     install_requires=[
