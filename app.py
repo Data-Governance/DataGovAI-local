@@ -1,29 +1,5 @@
-import os
-import torch
-
-# Disable Streamlit's file watcher - this helps avoid the torch.classes issue
-os.environ['STREAMLIT_FILE_WATCHER_TYPE'] = 'none'
-
-# Monkeypatch torch.classes to avoid Streamlit watcher error
-# Do this *before* importing Streamlit
-import torch.classes
-if not hasattr(torch.classes, '__path__'):
-    class PathFix:
-        _path = []
-    torch.classes.__path__ = PathFix()
-
-# Fix for Streamlit/Torch compatibility issue - event loop
-# This should also happen before Streamlit is imported
-import asyncio
-try:
-    asyncio.get_running_loop()
-except RuntimeError:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-
-# Now import Streamlit and other modules
 import streamlit as st
+import os
 import sys
 import logging
 from typing import List, Dict, Tuple
