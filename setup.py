@@ -1,6 +1,5 @@
 """
-DataGovAI - Utah GRS Knowledge Base Agent
-Copyright (c) 2025 Utah Office of Data Privacy (ODP). All Rights Reserved.
+Setup configuration for the Generic AI Agent package.
 """
 
 from setuptools import setup, find_packages
@@ -32,37 +31,51 @@ dev_requires = [
 ]
 
 setup(
-    name="datagovai",
-    version="1.0.0",
-    author="Utah Office of Data Privacy",
-    author_email="privacy@utah.gov",  # Replace with actual ODP email
-    description="A proprietary knowledge base agent for Utah GRS",
+    name="knowledge-base-agent",
+    version="0.1.0",
+    author="Knowledge Base Agent Contributors",
+    author_email="your.email@example.com",
+    description="A hybrid knowledge base agent combining vector embeddings and knowledge graphs",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://privacy.utah.gov",  # Replace with actual ODP website
-    packages=find_packages(),
+    url="https://github.com/yourusername/knowledge-base-agent",
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     classifiers=[
-        "Development Status :: 4 - Beta",
-        "Intended Audience :: Government",
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
-        "Topic :: Text Processing :: Indexing",
-        "Private :: Do Not Upload",  # Indicates this is not for public distribution
+        "Programming Language :: Python :: 3.11",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    python_requires=">=3.10",
+    python_requires=">=3.8",
     install_requires=[
-        "flask>=2.0.0",
-        "sentence-transformers>=4.0.0",
-        "transformers>=4.35.0",
-        "torch>=2.0.0",
-        "pymupdf>=1.23.0",
+        "fastapi>=0.104.1",
+        "uvicorn>=0.24.0",
         "python-dotenv>=1.0.0",
-        "psycopg2-binary>=2.9.0",
-        "pgvector>=0.2.0",
-        "numpy>=1.21.0",
-        "pandas>=1.3.0",
-        "tqdm>=4.65.0",
-        "plotly>=5.16.0",
+        "pydantic>=2.5.2",
+        "pinecone-client>=3.0.0",
+        "pymongo>=4.6.1",
+        "neo4j>=5.14.0",
+        "sentence-transformers>=2.2.2",
+        "spacy>=3.7.2",
+        "torch>=2.1.0",
+        "transformers>=4.36.0",
+        "numpy>=1.24.0",
+        "pandas>=2.1.3",
+        "tqdm>=4.66.1",
+        "PyYAML>=6.0.1",
+        "python-multipart>=0.0.6",
+        "aiofiles>=23.2.1",
+        "tenacity>=8.2.3",
+        "openai>=1.12.0",
+        "tiktoken>=0.6.0",
     ],
     extras_require={
         "dev": dev_requires,
@@ -74,14 +87,9 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "datagovai=app.app:main",
+            "knowledge-base-agent=knowledge_base_agent.cli:main",
         ],
     },
     include_package_data=True,
-    package_data={
-        "datagovai": [
-            "app/templates/*",
-            "app/static/*",
-        ],
-    },
+    zip_safe=False,
 ) 
