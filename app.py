@@ -357,22 +357,43 @@ st.markdown("""
     .source-box {
         background-color: #f0f2f6;
         border-radius: 5px;
-        padding: 10px;
+        padding: 15px;
         margin: 10px 0;
+        border-left: 5px solid #4da6ff;
     }
     .evidence-box {
         border-left: 3px solid #00acb5;
         padding-left: 10px;
-        margin: 10px 0;
+        margin: 15px 0;
+        background-color: #fafafa;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    h1, h2, h3 {
+        color: #1f497d;
+    }
+    .stExpander {
+        border: 1px solid #e6e6e6;
+        border-radius: 5px;
+        margin-bottom: 15px;
+    }
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    footer {
+        visibility: hidden;
     }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("📚 Utah GRS Knowledge Base Agent")
 st.markdown("""
-This AI assistant helps you find information about Utah's General Retention Schedules (GRS).
-It provides evidence-based answers using official GRS documentation.
-""")
+<div style="background-color: #f5f7f9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+    <p style="margin-bottom: 0;">This AI assistant helps you find information about Utah's <strong>General Retention Schedules (GRS)</strong>. 
+    It provides evidence-based answers using official GRS documentation, helping you understand document retention requirements.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Load models and config once
 config, embedding_model, openai_client = load_config_and_clients()
@@ -463,17 +484,37 @@ try:
                         with st.expander("📚 Source Documents"):
                             st.markdown("This answer was generated based on the following GRS documents:")
                             for source in sources:
-                                if source['document_title'] and source['source_url']:
-                                    st.markdown(f"""
-                                    <div class='source-box'>
-                                        📄 <b>{source['document_title']}</b><br>
-                                        🔗 <a href="{source['source_url']}" target="_blank">View Source Document</a>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                doc_title = source['document_title']
+                                doc_id = ""
+                                
+                                # Try to extract GRS document ID from title or content if available
+                                if "GRS-" in doc_title or "RS-" in doc_title:
+                                    doc_id = doc_title
+                                else:
+                                    # Extract any document IDs from the title
+                                    import re
+                                    id_match = re.search(r'(GRS-\d+|RS-\d+)', doc_title)
+                                    if id_match:
+                                        doc_id = id_match.group(0)
+                                    else:
+                                        doc_id = doc_title
+                                
+                                st.markdown(f"""
+                                <div class='source-box'>
+                                    📄 <b>{doc_title}</b>
+                                    <br>
+                                    📋 Document ID: {doc_id}
+                                    <br>
+                                    <small>Note: Direct document links are not available in this demo. In a production environment, 
+                                    these would link to the official Utah Archives GRS documents.</small>
+                                </div>
+                                """, unsafe_allow_html=True)
                         
                             st.markdown("""
-                            <small>Note: The response is generated based on the content of these documents. 
-                            Always verify critical information by consulting the original source documents.</small>
+                            <small>The response is generated based on the content extracted from Utah's General Retention Schedules.
+                            To access official GRS documents, please visit the 
+                            <a href="https://archives.utah.gov/rim/retention-schedules.html" target="_blank">
+                            Utah State Archives and Records Service website</a>.</small>
                             """, unsafe_allow_html=True)
                         
                         # Display Raw Context (for transparency)
@@ -482,10 +523,23 @@ try:
                             for chunk_id, distance, _ in relevant_chunk_data:
                                 if chunk_id in chunk_texts_map:
                                     chunk_info = chunk_texts_map[chunk_id]
+                                    # Try to extract document ID
+                                    content = chunk_info['content']
+                                    doc_title = chunk_info['document_title']
+                                    
+                                    # Look for GRS codes in the content
+                                    import re
+                                    grs_match = re.search(r'(GRS-\d+|RS-\d+)', content + " " + doc_title)
+                                    grs_id = grs_match.group(0) if grs_match else "Unknown GRS"
+                                    
+                                    # Format for display
                                     st.markdown(f"""
                                     <div class='evidence-box'>
-                                        <small>From: {chunk_info['document_title']}</small><br>
-                                        {chunk_info['content']}
+                                        <div style='background-color: #f5f5f5; padding: 5px; margin-bottom: 5px; border-radius: 3px;'>
+                                            <strong>Source:</strong> {doc_title} <span style='color: #666;'>({grs_id})</span><br>
+                                            <span style='color: #888; font-size: 0.8em;'>Relevance score: {1.0 - float(distance):.2f}</span>
+                                        </div>
+                                        {content}
                                     </div>
                                     """, unsafe_allow_html=True)
                         
