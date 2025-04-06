@@ -488,15 +488,19 @@ You have access to the previous conversation and context. Reference this informa
 # Set page config
 st.set_page_config(
     page_title="DataGovAI - Utah GRS Knowledge Base Agent",
-    page_icon="./logo",
+    page_icon="logo.png",  # Updated path to use just the filename
     layout="wide"
 )
 
-# Display logo
-logo = Image.open("./logo")
-col1, col2, col3 = st.columns([1,2,1])
-with col2:
-    st.image(logo, width=200)
+# Check if logo file exists and display it
+logo_path = "logo.png"  # Updated path to use just the filename
+if os.path.exists(logo_path):
+    logo = Image.open(logo_path)
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.image(logo, width=200)
+else:
+    st.warning(f"Logo file not found at {logo_path}. Using text header instead.")
 
 st.title("DataGovAI - Utah GRS Knowledge Base Agent")
 
