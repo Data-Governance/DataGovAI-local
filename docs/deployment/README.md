@@ -2,553 +2,286 @@
 
 ## Overview
 
-This guide covers the deployment process for the DataGovAI system in production environments. It includes infrastructure setup, security configurations, and maintenance procedures.
+This guide covers the deployment process for the DataGovAI system in production environments.
 
-## System Requirements
+## Prerequisites
 
-### Hardware Requirements
+| Component | Requirement |
+|-----------|-------------|
+| Python | 3.10+ |
+| PostgreSQL | 14+ with pgvector |
+| Redis | 7.0+ |
+| CUDA | 12.0+ (for GPU support) |
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| CPU       | 4 cores | 8+ cores    |
-| RAM       | 16 GB   | 32+ GB      |
-| Storage   | 100 GB  | 500+ GB     |
-| Network   | 1 Gbps  | 10 Gbps     |
+## Directory Structure
 
-### Software Requirements
+```
+DataGovAI/
+├── app/                # Main application code
+│   ├── static/        # CSS, JS, and assets
+│   └── templates/     # HTML templates
+├── app.py             # Flask application
+├── data/              # Document storage
+├── docs/              # Documentation
+├── scripts/           # Utility scripts
+└── tests/             # Test suite
+```
 
-| Component | Version | Notes |
-|-----------|---------|-------|
-| Python    | 3.10+   | Required for core services |
-| PostgreSQL| 14+     | Database backend |
-| Redis     | 7.0+    | Caching and queues |
-| Docker    | 24.0+   | Container runtime |
-| Kubernetes| 1.26+   | Container orchestration |
+## Deployment Steps
 
-## Infrastructure Setup
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/DataGovAI.git
+cd DataGovAI
+```
 
-### 1. Cloud Provider Configuration
+2. Create and activate virtual environment:
+```bash
+python -m venv prod_env
+source prod_env/bin/activate
+```
 
-```yaml
-# terraform/main.tf
-provider "aws" {
-  region = "us-west-2"
-}
+3. Install production dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
-  
-  name = "datagovai-vpc"
-  cidr = "10.0.0.0/16"
-  
-  azs             = ["us-west-2a", "us-west-2b"]
-  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
-  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
-  
-  enable_nat_gateway = true
-  single_nat_gateway = false
-}
+4. Configure environment variables:
+```bash
+cp .env.example .env
+# Edit .env with production settings
+```
 
-module "eks" {
-  source = "terraform-aws-modules/eks/aws"
-  
-  cluster_name    = "datagovai-cluster"
-  cluster_version = "1.26"
-  
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
-  
-  eks_managed_node_groups = {
-    general = {
-      desired_size = 2
-      min_size    = 1
-      max_size    = 4
-      
-      instance_types = ["t3.xlarge"]
-      capacity_type  = "ON_DEMAND"
+5. Initialize database:
+```bash
+python scripts/init_db.py
+```
+
+6. Configure Gunicorn:
+```bash
+# gunicorn.conf.py
+workers = 4
+bind = "0.0.0.0:8000"
+worker_class = "uvicorn.workers.UvicornWorker"
+```
+
+7. Start the application:
+```bash
+gunicorn app:app
+```
+
+## Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| FLASK_ENV | Environment type | `production` |
+| DEBUG | Debug mode | `False` |
+| DATABASE_URL | PostgreSQL connection | `postgresql://user:pass@host:5432/db` |
+| REDIS_URL | Redis connection | `redis://localhost:6379/0` |
+| SECRET_KEY | Application secret | `your-secret-key` |
+| ALLOWED_HOSTS | Allowed hostnames | `example.com,api.example.com` |
+
+## Security Considerations
+
+1. SSL/TLS Configuration:
+```nginx
+# /etc/nginx/sites-available/datagovai
+server {
+    listen 443 ssl;
+    server_name api.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/api.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
     }
-  }
 }
 ```
 
-### 2. Database Setup
-
-```yaml
-# kubernetes/postgres.yaml
-apiVersion: postgresql.cnpg.io/v1
-kind: Cluster
-metadata:
-  name: datagovai-db
-spec:
-  instances: 3
-  storage:
-    size: 100Gi
-    storageClass: gp3
-  postgresql:
-    parameters:
-      max_connections: 200
-      shared_buffers: 4GB
-      effective_cache_size: 12GB
-      maintenance_work_mem: 1GB
-      checkpoint_completion_target: 0.9
-      wal_buffers: 16MB
-      default_statistics_target: 100
-      random_page_cost: 1.1
-      effective_io_concurrency: 200
-      work_mem: 52428kB
-      min_wal_size: 1GB
-      max_wal_size: 4GB
+2. Firewall Rules:
+```bash
+# Allow only necessary ports
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw allow 5432/tcp  # PostgreSQL
+ufw enable
 ```
 
-### 3. Redis Configuration
+## Monitoring
 
-```yaml
-# kubernetes/redis.yaml
-apiVersion: redis.redis.opstreelabs.in/v1beta1
-kind: Redis
-metadata:
-  name: datagovai-redis
-spec:
-  kubernetesConfig:
-    image: redis:7.0
-    resources:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
-  storage:
-    volumeClaimTemplate:
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 5Gi
-  redisConfig:
-    maxmemory: "400mb"
-    maxmemory-policy: "allkeys-lru"
+1. Configure logging:
+```python
+# logging.conf
+[loggers]
+keys=root,gunicorn.error,gunicorn.access
+
+[handlers]
+keys=console,error_file,access_file
+
+[formatters]
+keys=generic,access
+
+[logger_root]
+level=INFO
+handlers=console
+
+[logger_gunicorn.error]
+level=INFO
+handlers=error_file
+propagate=0
+qualname=gunicorn.error
+
+[logger_gunicorn.access]
+level=INFO
+handlers=access_file
+propagate=0
+qualname=gunicorn.access
+
+[handler_console]
+class=StreamHandler
+formatter=generic
+args=(sys.stdout, )
+
+[handler_error_file]
+class=logging.FileHandler
+formatter=generic
+args=('/var/log/datagovai/error.log',)
+
+[handler_access_file]
+class=logging.FileHandler
+formatter=access
+args=('/var/log/datagovai/access.log',)
+
+[formatter_generic]
+format=%(asctime)s [%(process)d] [%(levelname)s] %(message)s
+datefmt=%Y-%m-%d %H:%M:%S
+class=logging.Formatter
+
+[formatter_access]
+format=%(message)s
+class=logging.Formatter
 ```
 
-## Application Deployment
+2. Set up monitoring tools:
+```bash
+# Install Prometheus and Grafana
+apt-get update
+apt-get install -y prometheus grafana
 
-### 1. Core Services
+# Configure Prometheus
+cat > /etc/prometheus/prometheus.yml << EOF
+global:
+  scrape_interval: 15s
 
-```yaml
-# kubernetes/core-services.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: datagovai-api
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: datagovai-api
-  template:
-    metadata:
-      labels:
-        app: datagovai-api
-    spec:
-      containers:
-      - name: api
-        image: datagovai/api:1.0.0
-        ports:
-        - containerPort: 8000
-        env:
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: datagovai-secrets
-              key: database-url
-        - name: REDIS_URL
-          valueFrom:
-            secretKeyRef:
-              name: datagovai-secrets
-              key: redis-url
-        resources:
-          requests:
-            cpu: 500m
-            memory: 1Gi
-          limits:
-            cpu: 2000m
-            memory: 4Gi
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 5
-```
+scrape_configs:
+  - job_name: 'datagovai'
+    static_configs:
+      - targets: ['localhost:8000']
+EOF
 
-### 2. Worker Services
-
-```yaml
-# kubernetes/worker-services.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: datagovai-worker
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: datagovai-worker
-  template:
-    metadata:
-      labels:
-        app: datagovai-worker
-    spec:
-      containers:
-      - name: worker
-        image: datagovai/worker:1.0.0
-        env:
-        - name: QUEUE_URL
-          valueFrom:
-            secretKeyRef:
-              name: datagovai-secrets
-              key: queue-url
-        resources:
-          requests:
-            cpu: 1000m
-            memory: 2Gi
-          limits:
-            cpu: 4000m
-            memory: 8Gi
-```
-
-### 3. Ingress Configuration
-
-```yaml
-# kubernetes/ingress.yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: datagovai-ingress
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  tls:
-  - hosts:
-    - api.datagovai.utah.gov
-    secretName: datagovai-tls
-  rules:
-  - host: api.datagovai.utah.gov
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: datagovai-api
-            port:
-              number: 80
-```
-
-## Security Configuration
-
-### 1. Network Policies
-
-```yaml
-# kubernetes/network-policies.yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: datagovai-network-policy
-spec:
-  podSelector:
-    matchLabels:
-      app: datagovai-api
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: ingress-nginx
-    ports:
-    - protocol: TCP
-      port: 8000
-  egress:
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: datagovai
-    ports:
-    - protocol: TCP
-      port: 5432
-    - protocol: TCP
-      port: 6379
-```
-
-### 2. Secret Management
-
-```yaml
-# kubernetes/secrets.yaml
-apiVersion: external-secrets.io/v1beta1
-kind: ExternalSecret
-metadata:
-  name: datagovai-secrets
-spec:
-  refreshInterval: 1h
-  secretStoreRef:
-    name: aws-secretsmanager
-    kind: ClusterSecretStore
-  target:
-    name: datagovai-secrets
-    creationPolicy: Owner
-  data:
-  - secretKey: database-url
-    remoteRef:
-      key: datagovai/production/database-url
-  - secretKey: redis-url
-    remoteRef:
-      key: datagovai/production/redis-url
-  - secretKey: api-key
-    remoteRef:
-      key: datagovai/production/api-key
-```
-
-## Monitoring Setup
-
-### 1. Prometheus Configuration
-
-```yaml
-# kubernetes/prometheus.yaml
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: datagovai-monitor
-spec:
-  selector:
-    matchLabels:
-      app: datagovai-api
-  endpoints:
-  - port: metrics
-    interval: 15s
-    path: /metrics
-```
-
-### 2. Grafana Dashboards
-
-```yaml
-# kubernetes/grafana-dashboards.yaml
-apiVersion: integreatly.org/v1alpha1
-kind: GrafanaDashboard
-metadata:
-  name: datagovai-dashboard
-spec:
-  json: |
-    {
-      "title": "DataGovAI Overview",
-      "panels": [
-        {
-          "title": "API Request Rate",
-          "type": "graph",
-          "datasource": "Prometheus",
-          "targets": [
-            {
-              "expr": "rate(http_requests_total{app=\"datagovai-api\"}[5m])"
-            }
-          ]
-        },
-        {
-          "title": "Processing Queue Length",
-          "type": "gauge",
-          "datasource": "Prometheus",
-          "targets": [
-            {
-              "expr": "processing_queue_length"
-            }
-          ]
-        }
-      ]
-    }
+# Start services
+systemctl enable prometheus grafana-server
+systemctl start prometheus grafana-server
 ```
 
 ## Backup and Recovery
 
-### 1. Backup Configuration
-
-```yaml
-# kubernetes/backup.yaml
-apiVersion: velero.io/v1
-kind: Schedule
-metadata:
-  name: datagovai-backup
-spec:
-  schedule: "0 1 * * *"
-  template:
-    includedNamespaces:
-    - datagovai
-    includedResources:
-    - deployments
-    - services
-    - configmaps
-    - secrets
-    volumeSnapshotLocations:
-    - name: aws-default
-  ttl: 720h
-```
-
-### 2. Database Backup
-
+1. Database backup:
 ```bash
 #!/bin/bash
-# scripts/backup-database.sh
+# /usr/local/bin/backup-datagovai.sh
 
-# Set variables
-BACKUP_DIR="/backups/postgres"
+BACKUP_DIR="/var/backups/datagovai"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-DB_NAME="datagovai"
 
-# Create backup
-pg_dump \
-  --format=custom \
-  --compress=9 \
-  --file="${BACKUP_DIR}/${DB_NAME}_${TIMESTAMP}.backup" \
-  --username="${DB_USER}" \
-  --host="${DB_HOST}" \
-  "${DB_NAME}"
+# Backup database
+pg_dump -U datagovai_user datagovai > "$BACKUP_DIR/db_$TIMESTAMP.sql"
 
-# Rotate old backups (keep last 30 days)
-find ${BACKUP_DIR} -type f -mtime +30 -delete
+# Backup document storage
+tar -czf "$BACKUP_DIR/documents_$TIMESTAMP.tar.gz" /path/to/data/documents
+
+# Cleanup old backups (keep last 7 days)
+find "$BACKUP_DIR" -type f -mtime +7 -delete
 ```
 
-## Scaling Configuration
-
-### 1. Horizontal Pod Autoscaling
-
-```yaml
-# kubernetes/hpa.yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: datagovai-api-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: datagovai-api
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
-```
-
-### 2. Vertical Pod Autoscaling
-
-```yaml
-# kubernetes/vpa.yaml
-apiVersion: autoscaling.k8s.io/v1
-kind: VerticalPodAutoscaler
-metadata:
-  name: datagovai-api-vpa
-spec:
-  targetRef:
-    apiVersion: "apps/v1"
-    kind: Deployment
-    name: datagovai-api
-  updatePolicy:
-    updateMode: "Auto"
-  resourcePolicy:
-    containerPolicies:
-    - containerName: '*'
-      minAllowed:
-        cpu: 100m
-        memory: 512Mi
-      maxAllowed:
-        cpu: 4
-        memory: 8Gi
-```
-
-## Maintenance Procedures
-
-### 1. Database Maintenance
-
-```sql
--- maintenance/vacuum.sql
-VACUUM ANALYZE documents;
-VACUUM ANALYZE chunks;
-VACUUM ANALYZE entities;
-VACUUM ANALYZE relationships;
-
--- maintenance/reindex.sql
-REINDEX TABLE documents;
-REINDEX TABLE chunks;
-REINDEX TABLE entities;
-REINDEX TABLE relationships;
-```
-
-### 2. Cache Maintenance
-
+2. Recovery procedure:
 ```bash
-#!/bin/bash
-# scripts/clear-cache.sh
+# Restore database
+psql -U datagovai_user datagovai < backup.sql
 
-# Clear Redis cache
-redis-cli -h ${REDIS_HOST} -p ${REDIS_PORT} FLUSHDB
+# Restore documents
+tar -xzf documents_backup.tar.gz -C /path/to/data/
+```
 
-# Clear vector cache
-kubectl exec -it \
-  $(kubectl get pod -l app=datagovai-api -o jsonpath='{.items[0].metadata.name}') \
-  -- python -c "from app.cache import clear_vector_cache; clear_vector_cache()"
+## Scaling
+
+1. Horizontal scaling:
+```nginx
+# /etc/nginx/conf.d/upstream.conf
+upstream datagovai {
+    server 127.0.0.1:8001;
+    server 127.0.0.1:8002;
+    server 127.0.0.1:8003;
+    server 127.0.0.1:8004;
+}
+```
+
+2. Load balancing:
+```nginx
+# /etc/nginx/sites-available/datagovai
+server {
+    listen 443 ssl;
+    server_name api.example.com;
+
+    location / {
+        proxy_pass http://datagovai;
+        proxy_next_upstream error timeout invalid_header http_500;
+        proxy_next_upstream_tries 3;
+    }
+}
 ```
 
 ## Troubleshooting
 
-### Common Issues
+Common issues and solutions:
 
-1. **Database Connection Issues**
-   ```bash
-   # Check database connectivity
-   kubectl exec -it ${POD_NAME} -- pg_isready -h ${DB_HOST}
-   
-   # Check connection pool metrics
-   kubectl exec -it ${POD_NAME} -- python -c "
-   from app.db import get_pool_metrics
-   print(get_pool_metrics())
-   "
-   ```
+1. Application not starting:
+```bash
+# Check logs
+tail -f /var/log/datagovai/error.log
 
-2. **Memory Issues**
-   ```bash
-   # Check memory usage
-   kubectl top pods
-   
-   # Get container memory stats
-   kubectl exec -it ${POD_NAME} -- cat /sys/fs/cgroup/memory/memory.stat
-   ```
+# Verify permissions
+chown -R datagovai:datagovai /path/to/application
+chmod -R 755 /path/to/application
+```
 
-3. **Network Issues**
-   ```bash
-   # Test network connectivity
-   kubectl exec -it ${POD_NAME} -- curl -v ${SERVICE_URL}
-   
-   # Check DNS resolution
-   kubectl exec -it ${POD_NAME} -- nslookup ${SERVICE_NAME}
-   ```
+2. Database connection issues:
+```bash
+# Check PostgreSQL status
+systemctl status postgresql
 
-## See Also
-- [Architecture Overview](../architecture/README.md)
-- [API Documentation](../api/README.md)
-- [Monitoring Guide](../maintenance/monitoring.md) 
+# Verify connection
+psql -U datagovai_user -h localhost -d datagovai
+```
+
+3. Memory issues:
+```bash
+# Monitor memory usage
+free -m
+top
+
+# Adjust Gunicorn workers
+worker_class = "uvicorn.workers.UvicornWorker"
+workers = 4
+worker_connections = 1000
+```
+
+## Support
+
+For deployment support:
+- Email: devops@datagovai.utah.gov
+- Internal Wiki: https://wiki.utah.gov/datagovai/deployment
+- Emergency Contact: +1 (555) 123-4567 

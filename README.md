@@ -54,7 +54,7 @@ python scripts/init_db.py
 
 3. Run:
 ```bash
-python app/app.py
+python app.py
 # Visit http://localhost:5000
 ```
 
@@ -95,8 +95,8 @@ python app/app.py
 DataGovAI/
 ├── app/                # Main application code
 │   ├── static/        # CSS, JS, and assets
-│   ├── templates/     # HTML templates
-│   └── app.py        # Flask application
+│   └── templates/     # HTML templates
+├── app.py             # Flask application
 ├── data/              # Document storage
 ├── docs/              # Documentation
 ├── scripts/           # Utility scripts
