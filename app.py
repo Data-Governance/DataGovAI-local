@@ -6,6 +6,25 @@ from typing import List, Dict, Tuple
 # Import torch early for CUDA checks
 import torch 
 
+# Disable Streamlit's file watcher - This helps avoid the torch.classes issue
+os.environ['STREAMLIT_FILE_WATCHER_TYPE'] = 'none'
+
+# Fix for Streamlit/Torch compatibility issue
+import asyncio
+try:
+    asyncio.get_running_loop()
+except RuntimeError:
+    # Create an event loop if there isn't one
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+# Monkeypatch torch.classes to avoid Streamlit watcher error
+import torch.classes
+if not hasattr(torch.classes, '__path__'):
+    class PathFix:
+        _path = []
+    torch.classes.__path__ = PathFix()
+
 import psycopg2
 import psycopg2.extras # For execute_values
 from psycopg2.extensions import register_adapter, AsIs
@@ -142,7 +161,27 @@ def verify_db_structure(conn):
                     ON CONFLICT (document_id) DO NOTHING;
                 """)
                 conn.commit()
+            
+            # Verify column structure
+            if chunks_exists:
+                # Check if embedding column exists with correct type
+                cur.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.columns 
+                        WHERE table_name = 'chunks' AND column_name = 'embedding'
+                    );
+                """)
+                embedding_exists = cur.fetchone()[0]
                 
+                if not embedding_exists:
+                    logger.warning("Adding embedding column to chunks table")
+                    try:
+                        cur.execute("ALTER TABLE chunks ADD COLUMN embedding vector(768);")
+                        conn.commit()
+                    except Exception as e:
+                        logger.error(f"Could not add embedding column: {e}")
+                        conn.rollback()
+                        
             # Set up foreign key relationship if both tables exist now
             if chunks_exists and documents_exists:
                 # Check if foreign key exists
@@ -192,19 +231,39 @@ def find_relevant_chunks(conn, _query_embedding: np.ndarray, top_k: int = 5) -> 
     results = []
     try:
         with conn.cursor() as cur:
-            # First try the full query with document join
+            # First check if title column exists in documents table
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns 
+                    WHERE table_name = 'documents' AND column_name = 'title'
+                );
+            """)
+            title_exists = cur.fetchone()[0]
+            
+            # Try the full query with document join
             try:
-                sql = """
-                    SELECT c.chunk_id, c.embedding <=> %s::vector AS distance, d.title
-                    FROM chunks c
-                    JOIN documents d ON c.document_id = d.document_id
-                    WHERE c.embedding IS NOT NULL
-                    ORDER BY distance ASC
-                    LIMIT %s;
-                    """
+                if title_exists:
+                    sql = """
+                        SELECT c.chunk_id, c.embedding <=> %s::vector AS distance, d.title
+                        FROM chunks c
+                        JOIN documents d ON c.document_id = d.document_id
+                        WHERE c.embedding IS NOT NULL
+                        ORDER BY distance ASC
+                        LIMIT %s;
+                        """
+                else:
+                    # Use document_id as fallback if title doesn't exist
+                    sql = """
+                        SELECT c.chunk_id, c.embedding <=> %s::vector AS distance, d.document_id
+                        FROM chunks c
+                        JOIN documents d ON c.document_id = d.document_id
+                        WHERE c.embedding IS NOT NULL
+                        ORDER BY distance ASC
+                        LIMIT %s;
+                        """
                 cur.execute(sql, (_query_embedding, top_k))
                 results = cur.fetchall()
-                logger.info(f"Found {len(results)} relevant chunk candidates with document titles.")
+                logger.info(f"Found {len(results)} relevant chunk candidates with document information.")
                 return [(row[0], row[1], row[2]) for row in results]
             except Exception as e:
                 logger.warning(f"Join query failed, trying simple query: {e}")
@@ -238,14 +297,32 @@ def get_chunk_text(conn, chunk_ids: List[str]) -> Dict[str, Dict[str, str]]:
     chunk_map = {}
     try:
         with conn.cursor() as cur:
+            # Check if title column exists in documents table
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns 
+                    WHERE table_name = 'documents' AND column_name = 'title'
+                );
+            """)
+            title_exists = cur.fetchone()[0]
+            
             # First try the detailed query with document join
             try:
-                sql = """
-                    SELECT c.chunk_id, c.content, d.title, d.source_url, d.metadata
-                    FROM chunks c
-                    JOIN documents d ON c.document_id = d.document_id
-                    WHERE c.chunk_id = ANY(%s)
-                """
+                if title_exists:
+                    sql = """
+                        SELECT c.chunk_id, c.content, d.title, d.source_url, d.metadata
+                        FROM chunks c
+                        JOIN documents d ON c.document_id = d.document_id
+                        WHERE c.chunk_id = ANY(%s)
+                    """
+                else:
+                    # Use document_id as fallback if title doesn't exist
+                    sql = """
+                        SELECT c.chunk_id, c.content, d.document_id, NULL, NULL
+                        FROM chunks c
+                        JOIN documents d ON c.document_id = d.document_id
+                        WHERE c.chunk_id = ANY(%s)
+                    """
                 cur.execute(sql, (chunk_ids,))
                 results = cur.fetchall()
                 for row in results:
@@ -377,23 +454,93 @@ st.markdown("""
         border-radius: 5px;
         margin-bottom: 15px;
     }
-    .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
     footer {
         visibility: hidden;
+    }
+    .category-box {
+        background-color: #ffffff;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #e6e6e6;
+        margin-bottom: 10px;
+    }
+    .sample-questions {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+    div[data-testid="stSidebarContent"] {
+        background-color: #f8fafc;
     }
     </style>
 """, unsafe_allow_html=True)
 
+# Left Sidebar - Sample Questions
+with st.sidebar:
+    st.markdown("### 📝 Sample Questions")
+    
+    # Organize questions by category in expanders
+    categories = {
+        "Personnel & HR": {
+            "Personnel Files": "What is the retention period for employee personnel files?",
+            "Training Records": "How long should we keep employee training records?",
+            "Job Applications": "What is the retention schedule for job applications?"
+        },
+        "Administrative": {
+            "Correspondence": "How long should we keep general correspondence?",
+            "Meeting Records": "What is the disposition for audio/video recordings of meetings?",
+            "Email Management": "What are the requirements for email retention?"
+        },
+        "Financial & Legal": {
+            "Financial Records": "What schedule covers accounts payable records?",
+            "Legal Documents": "What is the retention period for contracts and agreements?",
+            "Audit Records": "How long should we keep audit reports?"
+        },
+        "Facilities & Equipment": {
+            "Facility Records": "How long should we keep building maintenance records?",
+            "Equipment Logs": "What is the retention period for equipment maintenance logs?",
+            "Property Files": "How long should property acquisition records be kept?"
+        }
+    }
+    
+    for category, questions in categories.items():
+        with st.expander(f"📁 {category}"):
+            for title, question in questions.items():
+                if st.button(f"🔍 {title}", key=f"btn_{title}"):
+                    st.session_state.query = question
+    
+    # GRS Quick Reference section in the same sidebar
+    st.markdown("---")
+    st.markdown("### 📋 GRS Quick Reference")
+    
+    with st.expander("What is GRS?"):
+        st.write("General Retention Schedules (GRS) are standardized guidelines that determine how long different types of government records must be kept and what happens to them afterward.")
+    
+    with st.expander("Key Components"):
+        st.markdown("- **Retention Period:** How long to keep records")
+        st.markdown("- **Disposition:** What happens after retention period")
+        st.markdown("- **Classification:** Access restrictions")
+    
+    with st.expander("Common Terms"):
+        st.markdown("- **Permanent:** Records kept indefinitely")
+        st.markdown("- **Temporary:** Records with set disposal date")
+        st.markdown("- **Vital:** Essential for operations")
+    
+    st.markdown("[📚 View Official GRS Documentation](https://archives.utah.gov/rim/retention-schedules.html)")
+
+# Main Content Area
 st.title("📚 Utah GRS Knowledge Base Agent")
 st.markdown("""
 <div style="background-color: #f5f7f9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
     <p style="margin-bottom: 0;">This AI assistant helps you find information about Utah's <strong>General Retention Schedules (GRS)</strong>. 
-    It provides evidence-based answers using official GRS documentation, helping you understand document retention requirements.</p>
+    It provides evidence-based answers using official GRS documentation.</p>
 </div>
 """, unsafe_allow_html=True)
+
+# Main content area - Question Input and Results
+st.markdown("## ❓ Ask a Question")
+query = st.text_input("Enter your question about the GRS:", key="query_input", value=st.session_state.get("query", ""))
 
 # Load models and config once
 config, embedding_model, openai_client = load_config_and_clients()
@@ -401,30 +548,6 @@ config, embedding_model, openai_client = load_config_and_clients()
 # Initialize session state
 if "query" not in st.session_state:
     st.session_state.query = ""
-
-# Sample Questions in Sidebar
-st.sidebar.markdown("### 📝 Sample Questions")
-sample_questions = {
-    "Personnel Records": "What is the retention period for employee personnel files?",
-    "Correspondence": "How long should we keep general correspondence?",
-    "Meeting Records": "What is the disposition for audio/video recordings of meetings?",
-    "Electronic Records": "Are there specific requirements for storing electronic records?",
-    "Financial Records": "What schedule covers accounts payable records?",
-    "Training Records": "How long should we keep employee training records?",
-    "Legal Documents": "What is the retention period for contracts and agreements?",
-    "Email Management": "What are the requirements for email retention?",
-    "Facility Records": "How long should we keep building maintenance records?",
-    "HR Documents": "What is the retention schedule for job applications?"
-}
-
-st.sidebar.markdown("Click any sample question or type your own:")
-for category, question in sample_questions.items():
-    if st.sidebar.button(f"🔍 {category}", key=f"btn_{category}"):
-        st.session_state.query = question
-
-# User Input
-st.markdown("## ❓ Ask a Question")
-query = st.text_input("Enter your question about the GRS:", key="query_input", value=st.session_state.get("query", ""))
 
 # Main app logic wrapped in try-except for robust error handling
 try:
