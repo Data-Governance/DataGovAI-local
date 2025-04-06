@@ -604,55 +604,7 @@ with st.sidebar:
         st.markdown("- **Temporary:** Records with set disposal date")
         st.markdown("- **Vital:** Essential for operations")
     
-    # -- Moved Upload/Save Section Here --
-        # Section for session management
-    st.markdown("### 💾 Session Management")
-    # -- Save button moved down --
     st.markdown("---") # Add a separator
-    st.markdown("### 📤 Upload/Save Session") # Updated title
-
-    # Option to save current session
-    if len(st.session_state.conversation_history) > 0:
-        import json
-        conversation_json = json.dumps({
-            "session_id": st.session_state.session_id,
-            "conversation_history": st.session_state.conversation_history,
-            "last_context_and_sources": st.session_state.last_context_and_sources,
-            "conversation_mode": st.session_state.conversation_mode
-        }, indent=2)
-        
-        st.download_button(
-            label="💾 Save Current Session",
-            data=conversation_json,
-            file_name=f"grs_session_{st.session_state.session_id[:8]}.json",
-            mime="application/json",
-            help="Save your current conversation to continue later"
-        )
-        st.markdown("<br>", unsafe_allow_html=True) # Add some space
-
-    # Option to upload a saved session
-    uploaded_file = st.file_uploader("Load a saved session", type="json", 
-                               label_visibility="collapsed", # Make label less prominent
-                               help="Upload a previously saved conversation to continue where you left off")
-    
-    if uploaded_file is not None:
-        try:
-            uploaded_data = json.load(uploaded_file)
-            # Validate the uploaded data has the required fields
-            if all(key in uploaded_data for key in ["conversation_history", "last_context_and_sources", "conversation_mode"]):
-                # Update session state with uploaded data
-                st.session_state.conversation_history = uploaded_data["conversation_history"]
-                st.session_state.last_context_and_sources = uploaded_data["last_context_and_sources"]
-                st.session_state.conversation_mode = uploaded_data["conversation_mode"]
-                st.success("✅ Session loaded successfully!")
-                # Rerun to reflect changes
-                st.rerun()
-            else:
-                st.error("❌ Invalid session file format. Please upload a valid session file.")
-        except Exception as e:
-            st.error(f"❌ Error loading session: {e}")
-
-    st.markdown("---") # Add another separator
     st.markdown("[📚 View Official GRS Documentation](https://archives.utah.gov/rim/retention-schedules.html)")
 
 # Main Content Area
@@ -708,7 +660,7 @@ if len(st.session_state.conversation_history) > 0:
             """, unsafe_allow_html=True)
     
     # Add options for conversation control with better UI
-    col1, col2, col3 = st.columns([1, 1, 1])
+    col1, col2 = st.columns([1, 1])
     with col1:
         if st.button("🗑️ Clear Conversation", key="clear_convo"):
             st.session_state.conversation_history = []
@@ -728,18 +680,6 @@ if len(st.session_state.conversation_history) > 0:
         else:
             if st.button("💬 Continue Chat", key="cont_chat"):
                 st.session_state.conversation_mode = True
-    
-    with col3:
-        if st.button("📥 Save Conversation", key="save_convo"):
-            # Create a downloadable version of the conversation
-            import json
-            conversation_json = json.dumps(st.session_state.conversation_history, indent=2)
-            st.download_button(
-                label="Download Conversation",
-                data=conversation_json,
-                file_name=f"conversation_{st.session_state.session_id[:8]}.json",
-                mime="application/json"
-            )
 
 # Query input form
 if st.session_state.conversation_mode:
