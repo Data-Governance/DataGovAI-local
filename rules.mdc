@@ -15,9 +15,9 @@ matches:
 This project implements a state-of-the-art version of the Knowledge Base Agent for Utah's General Retention Schedules (GRS), focusing on semantic accuracy and advanced NLP techniques.
 
 ## CRITICAL: Development Plan Maintenance
-- **ALWAYS check DEVELOPMENT_PLAN_SOTA.md before and after making changes**
-- **Update task status in DEVELOPMENT_PLAN_SOTA.md after completing each step (✅, 🔄, etc.)**
-- **Ensure all code changes align with the plan described in DEVELOPMENT_PLAN_SOTA.md**
+- **ALWAYS check `docs/development/plan.md` before and after making changes**
+- **Update task status in `docs/development/plan.md` after completing each step (✅, 🔄, etc.)**
+- **Ensure all code changes align with the plan described in `docs/development/plan.md`**
 - **Never deviate from the implementation steps without updating the plan first**
 - **Keep the status indicators current for easy progress tracking**
 
@@ -31,9 +31,10 @@ The SOTA branch focuses on maximizing semantic accuracy over raw performance, us
 
 ## Environment Setup
 - Use Python 3.10+
-- Activate the virtual environment: `source sota_venv/bin/activate`
+- Recommended method: Conda environment (`chatbot_environment.yml`). See [Environment Setup Guide](docs/guides/environment_setup.md).
+- Activate the environment: `conda activate chatbot`
 - Required packages: pymupdf, nltk, spacy, sentence-transformers, torch, transformers, bitsandbytes
-- GPU required for optimal performance (CUDA 12.0+)
+- GPU required for optimal performance (CUDA 12.0+). See [GPU Setup Guide](docs/guides/gpu_setup.md).
 
 ## Core Components
 - `processor.py`: Core document processing, semantic chunking via `semantic_chunk_document`
@@ -58,10 +59,11 @@ EXTRACTOR_4BIT=True
 # PostgreSQL Configuration
 POSTGRES_CONNECTION=postgresql://kb_agent_user:password@localhost:5432/knowledge_base
 ```
+See [Configuration Reference](docs/api/configuration.md) for more details.
 
 ## Implementation Plan
-Follow the implementation plan in `DEVELOPMENT_PLAN_SOTA.md` closely:
-1. ✅ Environment Setup - Use GPU with CUDA support
+Follow the implementation plan in `docs/development/plan.md` closely:
+1. ✅ Environment Setup - See [Environment Setup Guide](docs/guides/environment_setup.md)
 2. ✅ Semantic Embeddings - Verify SentenceTransformerEmbedding implementation
 3. ✅ Enhanced LLM Extraction - Improved prompt with relationships support
 4. ✅ Advanced Parsing - PyMuPDF for better PDF processing
@@ -69,11 +71,19 @@ Follow the implementation plan in `DEVELOPMENT_PLAN_SOTA.md` closely:
 6. 🔄 RAG+KG Query Logic - Next priority for implementation
 7. 🔄 Testing and Refinement - Ongoing
 
+## Documentation Structure
+- The main project documentation is located in the `docs/` directory.
+- Key starting points:
+    - [Quick Start Guide](docs/quick_start.md)
+    - [Architecture Guide](docs/architecture/README.md)
+    - [Development Plan](docs/development/plan.md)
+- Refer to the structure outlined in the main [README.md](../README.md#📚-documentation-structure) for a full overview.
+
 ## Code Standards
 - Always test changes with both CPU and GPU configurations
 - Maintain detailed docstrings with type hints
 - Validate against sample GRS documents
-- Keep DEVELOPMENT_PLAN_SOTA.md updated as tasks progress
+- Keep `docs/development/plan.md` updated as tasks progress
 - Prioritize semantic accuracy over processing speed
 
-Before each commit, verify that DEVELOPMENT_PLAN_SOTA.md accurately reflects the current implementation status. 
+Before each commit, verify that `docs/development/plan.md` accurately reflects the current implementation status. 

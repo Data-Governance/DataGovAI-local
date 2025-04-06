@@ -224,21 +224,23 @@ expected_entities = {
 The Knowledge Base Agent is built around a central `DocumentProcessor` which orchestrates the interaction between various components:
 
 1.  **Input**: Documents can be ingested via the CLI (`kb-agent process`) or the REST API (`POST /api/documents`). Search queries are handled via the CLI (`kb-agent query`) or the API (`GET /api/search`).
-2.  **Processing**: When a document is processed:
-    *   The `DocumentProcessor` receives the content and metadata.
-    *   It chunks the document into smaller segments using semantic chunking.
-    *   An **Embedding Model** (e.g., `SentenceTransformerEmbedding`) generates vector representations for the chunks.
-    *   An **Extractor Model** (e.g., `LocalLlmExtractor`) identifies entities and relationships.
-    *   The original content, metadata, and extracted entities/relations are stored in the **Document Store** and **Knowledge Store** (PostgreSQL).
-    *   The vector embeddings are stored in the **Vector Store** (PostgreSQL with pgvector) for efficient similarity search.
-3.  **Search**: When a query is received:
-    *   In standard mode: The processor performs semantic search to find relevant document chunks.
-    *   In **advanced Hybrid RAG+KG mode**:
-        1. The `RAGKGQueryAgent` performs semantic search (**RAG**) on the Vector Store.
-        2. It extracts entities from the query using an LLM.
-        3. It executes targeted knowledge graph queries (**KG**) on the Knowledge Store based on the entities.
-        4. It aggregates results from both the semantic search and knowledge graph queries.
-        5. It uses an LLM to synthesize a comprehensive answer from the aggregated context.
+2.  **Processing (Ingestion & Knowledge Building)**: When a document is processed:
+    *   The `DocumentProcessor` receives the content (using **PyMuPDF** for robust PDF extraction in the SOTA branch) and metadata.
+    *   It chunks the document into smaller, semantically meaningful segments (using techniques like sentence splitting via **NLTK/spaCy** in the SOTA branch).
+    *   **RAG Component:** An **Embedding Model** (e.g., `SentenceTransformerEmbedding` using models like `all-mpnet-base-v2` on GPU in SOTA) generates dense vector representations (embeddings) for each chunk. These capture the semantic meaning of the text.
+    *   **KG Component:** An **Extractor Model** (e.g., `LocalLlmExtractor` using models like `Mistral-7B-Instruct` on GPU in SOTA) is prompted to analyze the document's text. It identifies key entities (like Record Series Number, Title, Retention Period, Disposition Action, Legal Authority) and their relationships (e.g., a Record Series `HAS_RETENTION` of 'X years', or `SUPERSEDES` another GRS). The goal is to output this structured information, often in JSON format.
+    *   **Storage (Hybrid - PostgreSQL):**
+        *   The original content and metadata are stored in a **Document Store** (e.g., a `documents` table in PostgreSQL).
+        *   The extracted entities and relationships (**KG Component**) are stored in dedicated tables within the *same* PostgreSQL database (e.g., `entities`, `relationships` tables). This allows linking structured knowledge directly back to the source document.
+        *   The vector embeddings (**RAG Component**) are stored in a **Vector Store** using PostgreSQL's `pgvector` extension (e.g., a `chunks` table with an embedding column). This enables efficient semantic similarity search.
+3.  **Search (Querying & Answer Synthesis)**: When a query is received:
+    *   In standard mode: The processor typically performs semantic search on the Vector Store to find relevant document chunks based on the query's meaning.
+    *   In **advanced Hybrid RAG+KG mode (SOTA branch)**:
+        1. The `RAGKGQueryAgent` embeds the user query and performs semantic search (**RAG**) against the `pgvector` store to find chunks with similar meaning.
+        2. It uses an LLM to extract key entities mentioned in the user's query (e.g., a specific GRS number, a concept like 'payroll').
+        3. It executes targeted SQL queries against the structured `entities` and `relationships` tables (**KG**) based on the extracted entities (e.g., retrieving the exact Retention Period for a specific GRS number).
+        4. It aggregates the context from both the semantically relevant chunks (RAG) and the precise facts retrieved from the knowledge graph (KG).
+        5. It uses a powerful LLM to synthesize a comprehensive, accurate answer based on this combined RAG+KG context.
 4.  **Interfaces**:
     *   A **CLI** provides command-line tools for processing, searching, and managing the agent.
     *   A **REST API** (FastAPI-based) exposes the agent's functionality over HTTP.
@@ -273,56 +275,133 @@ The choice of a hybrid Retrieval-Augmented Generation (RAG) and Knowledge Graph 
 | **Processing** | OpenAI GPT-4, Claude, spaCy, Hugging Face |
 | **Integration** | FastAPI, GraphQL, Redis, Prometheus |
 
-## 📚 Documentation
-
-Start with our [Table of Contents](docs/00_table_of_contents.md) or dive into specific chapters:
-
-- [**Introduction**](docs/00_introduction.md): Fundamentals and architecture patterns
-- [**Storage Technologies**](docs/01_storage_technologies.md): Vector stores, document stores, graph databases
-- [**Processing & Analysis**](docs/02_processing_and_analysis.md): Document processing, entity recognition
-- [**Retrieval Systems**](docs/03_retrieval_systems.md): Vector search, hybrid approaches
-- [**Language Models & AI**](docs/04_language_models.md): LLMs, embeddings, QA systems
-- [**System Integration**](docs/05_system_integration.md): APIs, caching, monitoring
-- [**Advanced Topics**](docs/06_advanced_topics.md): Scaling, security, optimization
-
 ## 📚 Documentation Structure
 
-This project includes comprehensive documentation to guide development and usage:
+### Core Documentation
+- **[Quick Start Guide](docs/quick_start.md)**: Get up and running quickly
+- **[Development Plan](docs/development/plan.md)**: Central reference for all development activities
+- **[Architecture Guide](docs/architecture/README.md)**: Detailed system design and components
+- **[API Reference](docs/api/README.md)**: Complete API documentation
+- **[Knowledge Base Guide](docs/knowledge_base/README.md)**: Working with the knowledge base
 
-- **[Development Plan](DEVELOPMENT_PLAN_SOTA.md)**: The central reference for all development activities
-- **[Documentation Directory](docs/index.md)**: Structured documentation hub with architecture diagrams, component references, and guides
-- **[KB README](KB_README.md)**: Guide to creating and querying the knowledge base
+### Technical Documentation
+1. **Architecture & Design**
+   - [System Overview](docs/architecture/overview.md)
+   - [Data Flow](docs/architecture/data_flow.md)
+   - [Component Interactions](docs/architecture/component_interactions.md)
+   - [Database Schema](docs/architecture/database_schema.md)
 
-### Development Plan Tracking
+2. **Components**
+   - [Document Processor](docs/components/document_processor.md)
+   - [RAG System](docs/components/rag_system.md)
+   - [Knowledge Graph](docs/components/knowledge_graph.md)
+   - [Query Engine](docs/components/query_engine.md)
+   - [LLM Integration](docs/components/llm_integration.md)
 
-To ensure all development stays aligned with the overall plan:
+3. **Implementation Guides**
+   - [Environment Setup](docs/guides/environment_setup.md)
+   - [Database Setup](docs/guides/database_setup.md)
+   - [GPU Configuration](docs/guides/gpu_setup.md)
+   - [Security Best Practices](docs/guides/security.md)
+   - [Performance Optimization](docs/guides/optimization.md)
 
-1. **Before coding**: Always check the development plan
+4. **API Documentation**
+   - [REST API Reference](docs/api/rest_api.md)
+   - [Python API Reference](docs/api/python_api.md)
+   - [CLI Reference](docs/api/cli.md)
+   - [Configuration Reference](docs/api/configuration.md)
+
+5. **Knowledge Base**
+   - [KB Architecture](docs/knowledge_base/architecture.md)
+   - [Data Model](docs/knowledge_base/data_model.md)
+   - [Query Patterns](docs/knowledge_base/query_patterns.md)
+   - [Optimization Guide](docs/knowledge_base/optimization.md)
+
+### Development Resources
+1. **Contributing**
+   - [Contributing Guide](CONTRIBUTING.md)
+   - [Code Style Guide](docs/contributing/code_style.md)
+   - [Testing Guide](docs/contributing/testing.md)
+   - [Documentation Guide](docs/contributing/documentation.md)
+
+2. **Examples & Tutorials**
+   - [Basic Usage Examples](docs/examples/basic_usage.md)
+   - [Advanced Queries](docs/examples/advanced_queries.md)
+   - [Custom Extensions](docs/examples/custom_extensions.md)
+   - [Integration Examples](docs/examples/integration.md)
+
+3. **Maintenance**
+   - [Deployment Guide](docs/maintenance/deployment.md)
+   - [Monitoring Guide](docs/maintenance/monitoring.md)
+   - [Backup & Recovery](docs/maintenance/backup_recovery.md)
+   - [Troubleshooting](docs/maintenance/troubleshooting.md)
+
+### Development Tools
+
+1. **Plan Tracking**
    ```bash
+   # Check development plan status
    python scripts/check_plan.py
+   
+   # Find relevant documentation
+   python scripts/find_docs.py "knowledge graph"
+   
+   # List available components
+   python scripts/list_components.py
    ```
 
-2. **Find relevant documentation**:
+2. **Documentation Helpers**
    ```bash
-   python scripts/check_docs.py "RAG+KG Query"
+   # Generate API documentation
+   python scripts/generate_api_docs.py
+   
+   # Check documentation coverage
+   python scripts/check_docs_coverage.py
+   
+   # Validate documentation links
+   python scripts/validate_docs.py
    ```
 
-3. **List available components**:
+3. **Git Hooks**
    ```bash
-   python scripts/check_docs.py --list
+   # Install documentation hooks
+   python scripts/install_doc_hooks.py
    ```
 
-4. **Install Git hooks** to automate development plan checking:
-   ```bash
-   python scripts/install_hooks.py
-   ```
+### Directory Structure
+```
+docs/
+├── api/              # API documentation
+├── architecture/     # System design docs
+├── components/       # Component details
+├── contributing/     # Contribution guides
+├── examples/         # Usage examples
+├── guides/          # How-to guides
+├── knowledge_base/   # KB specific docs
+└── maintenance/     # Maintenance guides
+```
 
-### Documentation Directories
+## 🔍 Key Documentation Pages
 
-- `docs/architecture/`: System design and data flow diagrams
-- `docs/components/`: Detailed documentation for specific modules
-- `docs/guides/`: How-to guides for setup and usage
-- `docs/api-reference/`: Command and function references
+1. **For New Users**
+   - Start with [Quick Start Guide](docs/quick_start.md)
+   - Review [Basic Usage Examples](docs/examples/basic_usage.md)
+   - Check [Configuration Reference](docs/api/configuration.md)
+
+2. **For Developers**
+   - Read [Contributing Guide](CONTRIBUTING.md)
+   - Study [Architecture Guide](docs/architecture/README.md)
+   - Follow [Development Plan](docs/development/plan.md)
+
+3. **For System Administrators**
+   - Review [Deployment Guide](docs/maintenance/deployment.md)
+   - Study [Security Best Practices](docs/guides/security.md)
+   - Check [Monitoring Guide](docs/maintenance/monitoring.md)
+
+4. **For Data Scientists**
+   - Explore [Knowledge Base Guide](docs/knowledge_base/README.md)
+   - Study [Query Patterns](docs/knowledge_base/query_patterns.md)
+   - Review [Performance Optimization](docs/guides/optimization.md)
 
 ## 🔧 Installation
 

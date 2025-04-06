@@ -197,11 +197,12 @@ dependencies:
   - pydantic=2.10.6=pyh3cfb1c2_0
   - pydantic-core=2.27.2=py310h505e2c1_0
   - pygments=2.19.1=pyhd8ed1ab_0
-  - pyparsing=3.2.1=pyhd8ed1ab_0
+  - pyparsing=3.1.2=pyhd8ed1ab_0
   - pyside6=6.8.1=py310hfd10a26_0
-  - pysocks=1.7.1=pyha55dd90_7
-  - python=3.10.16=he725a3c_1_cpython
-  - python-dateutil=2.9.0.post0=pyhff2d567_1
+  - pysocks=1.7.1=pyha2e5f31_6
+  - python=3.10.14=h955ad1f_0
+  - python-dateutil=2.9.0=pyhd8ed1ab_0
+  - python-json-logger=2.0.7=pyhd8ed1ab_0
   - python-tzdata=2025.1=pyhd8ed1ab_0
   - python_abi=3.10=5_cp310
   - pytorch=2.5.1=cpu_openblas_py310ha613aac_2
@@ -289,4 +290,5 @@ dependencies:
       - sentence-transformers==3.4.1
       - spacy==3.7.5
       - streamlit==1.43.2
+  - psycopg2-binary
 prefix: /home/majid/anaconda3/envs/chatbot
