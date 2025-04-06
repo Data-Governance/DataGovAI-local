@@ -1,16 +1,23 @@
+import sys
+import os
+from pathlib import Path
+
+# Add project root to sys.path to allow imports from knowledge_base_agent
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
+
 #!/usr/bin/env python
 """
 Query Knowledge Base - Script to query the knowledge base using RAG+KG Query Agent.
 """
-import os
 import logging
 import argparse
 import json
 from pprint import pprint
 
-from src.knowledge_base_agent.config import get_config
-from src.knowledge_base_agent.cli import create_processor, setup_logging
-from src.knowledge_base_agent.query_agent import RAGKGQueryAgent
+from knowledge_base_agent.config import get_config
+from knowledge_base_agent.cli import create_processor, setup_logging
+from knowledge_base_agent.query_agent import RAGKGQueryAgent
 
 # Configure logging
 logger = logging.getLogger(__name__)

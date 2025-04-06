@@ -13,20 +13,20 @@ This plan assumes branching from the current main state *before* the rule-based/
 
 ## Overall SOTA Approach (Local Models - Recommended)
 
-This plan focuses on using local resources (GPU server) for building a state-of-the-art knowledge base from the GRS documents. The core strategy involves:
+This plan focuses on using local resources (GPU server) for building a state-of-the-art knowledge base from the GRS documents. The core strategy involves a **hybrid RAG (Retrieval-Augmented Generation) + KG (Knowledge Graph)** approach:
 
 1.  **Intelligent Parsing:** Using advanced PDF processing to extract text and structure accurately.
 2.  **Semantic Chunking:** Dividing documents into meaningful units that preserve context.
-3.  **Deep Embeddings:** Generating rich vector representations of chunks using local Sentence Transformer models.
-4.  **LLM-Powered Extraction:** Employing local LLMs to identify and structure key entities (Retention, Disposition, etc.) and their relationships.
-5.  **Hybrid Storage:** Utilizing PostgreSQL with pgvector to store both semantic embeddings (for similarity search) and a structured knowledge graph (for precise fact retrieval).
-6.  **Advanced Retrieval (RAG+KG):** Combining semantic search over embeddings with targeted queries to the knowledge graph, synthesized by an LLM, to provide detailed and accurate answers.
+3.  **Deep Embeddings (RAG Component):** Generating rich vector representations of chunks using local Sentence Transformer models for semantic search.
+4.  **LLM-Powered Extraction (KG Component):** Employing local LLMs to identify and structure key entities (Retention, Disposition, etc.) and their relationships.
+5.  **Hybrid Storage (PostgreSQL):** Utilizing PostgreSQL with pgvector to store both semantic embeddings (**RAG**) and a structured knowledge graph (**KG**).
+6.  **Advanced Hybrid Retrieval (RAG+KG):** Combining semantic search over embeddings (**RAG**) with targeted queries to the knowledge graph (**KG**), synthesized by an LLM, to provide detailed and accurate answers.
 
 The detailed workflow and implementation steps are outlined below.
 
 ## Detailed SOTA Workflow (Local Models)
 
-This section outlines the complete data processing and query pipeline:
+This section outlines the complete data processing and query pipeline for the **Hybrid RAG+KG system**:
 
 **1. Ingestion & Parsing:**
     *   **Input:** GRS PDF documents.
@@ -38,29 +38,29 @@ This section outlines the complete data processing and query pipeline:
     *   **Process:** Use NLP techniques (sentence splitting) to create semantically coherent chunks.
     *   **Output:** List of meaningful text chunks per document.
 
-**3. Embedding Generation:**
+**3. Embedding Generation (RAG Component):**
     *   **Input:** Semantic text chunks.
     *   **Process:** Use local `SentenceTransformerEmbedding` (e.g., `all-mpnet-base-v2`) on GPU.
     *   **Output:** Vector embeddings for each chunk.
 
-**4. Entity & Relationship Extraction:**
+**4. Entity & Relationship Extraction (KG Component):**
     *   **Input:** Extracted text.
     *   **Process:** Use local `LocalLlmExtractor` (e.g., Mistral-7B-Instruct) with refined prompts for structured JSON output (Entities: RecordSeriesNumber, Title, Description, RetentionPeriod, DispositionAction, LegalAuthority; Relationships: HAS_RETENTION, etc.).
     *   **Output:** Structured entities and relationships per document.
 
-**5. Knowledge Base Storage (PostgreSQL):**
-    *   **Input:** Document info, chunks, embeddings, entities, relationships.
-    *   **Process:** Store data in respective PostgreSQL tables (`documents`, `chunks` (in vector store), `entities`, `relationships`) using `PostgresDocumentStore`, `PostgresVectorStore`, `PostgresKnowledgeStore`.
+**5. Knowledge Base Storage (PostgreSQL - Hybrid):**
+    *   **Input:** Document info, chunks, embeddings (RAG), entities, relationships (KG).
+    *   **Process:** Store data in respective PostgreSQL tables (`documents`, `chunks` (embedding for **RAG**), `entities`, `relationships` (for **KG**)) using `PostgresDocumentStore`, `PostgresVectorStore`, `PostgresKnowledgeStore`.
     *   **Output:** Populated hybrid knowledge base.
 
-**6. Agent Interaction & Retrieval (SOTA RAG + KG):**
+**6. Agent Interaction & Retrieval (Hybrid RAG + KG):**
     *   **Input:** User query.
     *   **Process:** 
-        1. Embed query, perform semantic search on `VectorStore` for relevant chunks.
+        1. Embed query, perform semantic search on `VectorStore` for relevant chunks (**RAG retrieval**).
         2. Use LLM to identify entities in the query.
-        3. Perform targeted SQL queries on `KnowledgeStore` based on identified entities.
-        4. Aggregate semantic chunks + KG facts.
-        5. Use LLM to synthesize a final answer from the aggregated context.
+        3. Perform targeted SQL queries on `KnowledgeStore` based on identified entities (**KG retrieval**).
+        4. Aggregate semantic chunks (**RAG context**) + KG facts (**KG context**).
+        5. Use LLM to synthesize a final answer from the aggregated context (**Augmented Generation**).
     *   **Output:** Detailed, accurate, context-aware answer.
 
 **7. Testing and Refinement:**

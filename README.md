@@ -11,10 +11,10 @@ A powerful and flexible knowledge base agent that processes, stores, and retriev
 ## ✨ Features
 
 - Document processing with chunking and embedding generation
-- Vector similarity search using PostgreSQL/pgvector (or other backends)
-- Knowledge graph storage using PostgreSQL (or other backends like Neo4j)
-- Entity and relationship extraction using LLMs
-- Advanced RAG+KG query system with entity recognition and answer synthesis
+- Vector similarity search using PostgreSQL/pgvector (or other backends) - **(RAG Component)**
+- Knowledge graph storage using PostgreSQL (or other backends like Neo4j) - **(KG Component)**
+- Entity and relationship extraction using LLMs - **(KG Component)**
+- **Advanced Hybrid Retrieval (RAG+KG) query system** combining vector search with knowledge graph queries
 - Semantic chunking for optimal document segmentation
 - RESTful API with FastAPI
 - CLI interface for easy interaction
@@ -27,9 +27,9 @@ The `sota` branch offers state-of-the-art features designed to maximize semantic
 
 - 🔍 **PyMuPDF** for superior PDF extraction with layout preservation
 - 🧠 **Semantic Chunking** using NLTK/spaCy for context-aware document segmentation
-- 🔮 **SentenceTransformers** for high-quality, GPU-accelerated embeddings
-- 🤖 **Local LLMs** (Mistral, Llama, etc.) for entity extraction with relationship support
-- 📊 **RAG+KG Query Engine** that combines vector search with knowledge graph queries
+- 🔮 **SentenceTransformers** for high-quality, GPU-accelerated embeddings (**RAG**)
+- 🤖 **Local LLMs** (Mistral, Llama, etc.) for entity extraction with relationship support (**KG**)
+- 📊 **Hybrid RAG+KG Query Engine** that combines vector search (**RAG**) with knowledge graph queries (**KG**)
 - 💬 **LLM-powered Answer Synthesis** for comprehensive, accurate responses
 
 To use the SOTA features, use the `--advanced-query` flag when querying:
@@ -48,25 +48,197 @@ This Knowledge Base Agent is being developed as part of the **DataGovAI** platfo
 
 **Data Focus:** A primary data source for this knowledge base is the **Utah General Retention Schedules**. These schedules, maintained under DARSMGR, define how long different types of government records (Record Series) must be kept and their final disposition (e.g., destroy, transfer to archives). Processing these schedules allows DataGovAI to provide specific guidance on records management compliance.
 
+## 📊 GRS Documents Analysis
+
+### Document Categories Overview
+The Utah General Retention Schedules (GRS) documents are organized into the following major categories:
+
+1. **Administrative & Governance (791 documents, 4.1%)**
+   - Executive correspondence
+   - Policies and procedures
+   - Council minutes
+   - Organizational records
+   - Administrative files
+
+2. **Financial Records (1,518 documents, 7.8%)**
+   - Budget documents
+   - Payroll records
+   - Audit reports
+   - Tax records
+   - Financial statements
+
+3. **Public Services (763 documents, 3.9%)**
+   - City council records
+   - Utility management
+   - Cemetery records
+   - Public works documentation
+   - Community services
+
+4. **Legal & Compliance (426 documents, 2.2%)**
+   - Civil cases
+   - Criminal records
+   - Warrants
+   - Legal documentation
+   - Enforcement records
+
+5. **Education & Training (557 documents, 2.9%)**
+   - Student records
+   - School documentation
+   - Training materials
+   - Educational programs
+   - Academic records
+
+6. **Personnel Management (558 documents, 2.9%)**
+   - Employee files
+   - HR documentation
+   - Staff records
+   - Employment applications
+   - Personnel policies
+
+7. **Health & Medical (348 documents, 1.8%)**
+   - Medical records
+   - Patient files
+   - Healthcare administration
+   - Pharmacy records
+   - Health services
+
+8. **Property & Planning (365 documents, 1.9%)**
+   - Building permits
+   - Zoning records
+   - Land management
+   - Construction files
+   - Planning documentation
+
+9. **Records Management (399 documents, 2.1%)**
+   - Document tracking
+   - Archive management
+   - Records transfer
+   - File systems
+   - Documentation standards
+
+### Testing Strategy
+
+#### 1. Document Processing Testing
+- **Sample Selection**: Test with representative documents from each category
+- **Batch Processing**: Test with varying batch sizes (10, 100, 1000 documents)
+- **Format Handling**: Verify PDF extraction and text processing
+- **Metadata Extraction**: Test GRS number, retention period, and document type extraction
+
+#### 2. Knowledge Extraction Testing
+```python
+# Example knowledge extraction test
+test_documents = {
+    'administrative': ['policies-and-procedures-(GRS-1234).pdf'],
+    'financial': ['annual-budget-(GRS-5678).pdf'],
+    'legal': ['civil-case-files-(GRS-9012).pdf']
+}
+
+expected_entities = {
+    'retention_period': r'Retain for \d+ years',
+    'document_type': r'^[a-zA-Z\s-]+(?=-\(GRS)',
+    'grs_number': r'GRS-\d+'
+}
+```
+
+#### 3. Query Testing Scenarios
+1. **Retention Period Queries**
+   ```sql
+   -- Example retention period query
+   SELECT document_type, retention_period 
+   FROM grs_documents 
+   WHERE category = 'financial'
+   ```
+
+2. **Cross-Category Relations**
+   ```python
+   # Example relationship test
+   related_docs = knowledge_base.find_related(
+       document_id="GRS-1234",
+       relationship_type="references"
+   )
+   ```
+
+3. **Semantic Search Tests**
+   ```python
+   # Example semantic search test
+   results = knowledge_base.semantic_search(
+       query="What is the retention period for financial audit records?",
+       category="financial"
+   )
+   ```
+
+### Document Metadata Structure
+```json
+{
+    "document_id": "GRS-XXXXX",
+    "metadata": {
+        "title": "Document Title",
+        "category": "Major Category",
+        "subcategory": "Specific Type",
+        "retention_period": "Retention Duration",
+        "disposition": "Final Disposition",
+        "created_date": "YYYY-MM-DD",
+        "last_modified": "YYYY-MM-DD"
+    },
+    "relationships": {
+        "references": ["GRS-YYYY", "GRS-ZZZZ"],
+        "supersedes": ["GRS-AAAA"],
+        "related_to": ["GRS-BBBB"]
+    },
+    "extracted_entities": {
+        "organization": ["Department Name", "Division"],
+        "dates": ["Retention Start", "Review Date"],
+        "requirements": ["Legal Reference", "Compliance Note"]
+    }
+}
+```
+
+### Development Testing Phases
+
+1. **Phase 1: Basic Document Processing**
+   - Document ingestion and storage
+   - Metadata extraction
+   - Basic text extraction
+   - Category classification
+
+2. **Phase 2: Enhanced Analysis**
+   - Entity extraction
+   - Relationship mapping
+   - Retention period parsing
+   - Cross-reference detection
+
+3. **Phase 3: Query Capabilities**
+   - Basic keyword search
+   - Category-based filtering
+   - Semantic similarity search
+   - Relationship-based queries
+
+4. **Phase 4: Advanced Features**
+   - Multi-document analysis
+   - Temporal analysis
+   - Compliance checking
+   - Automated updates
+
 ## 🏗️ Architecture Overview
 
 The Knowledge Base Agent is built around a central `DocumentProcessor` which orchestrates the interaction between various components:
 
-1.  **Input**: Documents can be ingested via the CLI (`kb-agent process`) or the REST API (`POST /api/documents`). Search queries are handled via the CLI (`kb-agent search`) or the API (`GET /api/search`).
+1.  **Input**: Documents can be ingested via the CLI (`kb-agent process`) or the REST API (`POST /api/documents`). Search queries are handled via the CLI (`kb-agent query`) or the API (`GET /api/search`).
 2.  **Processing**: When a document is processed:
     *   The `DocumentProcessor` receives the content and metadata.
     *   It chunks the document into smaller segments using semantic chunking.
     *   An **Embedding Model** (e.g., `SentenceTransformerEmbedding`) generates vector representations for the chunks.
-    *   The original content, metadata, and extracted entities/relations are stored in the **Document Store** and **Knowledge Store**.
-    *   The vector embeddings are stored in the **Vector Store** for efficient similarity search.
+    *   An **Extractor Model** (e.g., `LocalLlmExtractor`) identifies entities and relationships.
+    *   The original content, metadata, and extracted entities/relations are stored in the **Document Store** and **Knowledge Store** (PostgreSQL).
+    *   The vector embeddings are stored in the **Vector Store** (PostgreSQL with pgvector) for efficient similarity search.
 3.  **Search**: When a query is received:
     *   In standard mode: The processor performs semantic search to find relevant document chunks.
-    *   In advanced RAG+KG mode:
-        1. The `RAGKGQueryAgent` performs semantic search
-        2. It extracts entities from the query using an LLM
-        3. It executes targeted knowledge graph queries based on the entities
-        4. It aggregates semantic chunks and KG results
-        5. It uses an LLM to synthesize a comprehensive answer
+    *   In **advanced Hybrid RAG+KG mode**:
+        1. The `RAGKGQueryAgent` performs semantic search (**RAG**) on the Vector Store.
+        2. It extracts entities from the query using an LLM.
+        3. It executes targeted knowledge graph queries (**KG**) on the Knowledge Store based on the entities.
+        4. It aggregates results from both the semantic search and knowledge graph queries.
+        5. It uses an LLM to synthesize a comprehensive answer from the aggregated context.
 4.  **Interfaces**:
     *   A **CLI** provides command-line tools for processing, searching, and managing the agent.
     *   A **REST API** (FastAPI-based) exposes the agent's functionality over HTTP.
