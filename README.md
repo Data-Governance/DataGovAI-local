@@ -1,7 +1,7 @@
 # 🧠 DataGovAI - Utah GRS Knowledge Base Agent
 
 <p align="center">
-  <span style="font-size: 120px;">🧠</span>
+  <img src="./logo.png" alt="DataGovAI Logo" width="800"/>
 </p>
 
 A proprietary knowledge base agent developed by the Utah Office of Data Privacy (ODP) for processing and managing Utah's General Retention Schedules (GRS). This system helps government entities efficiently access and understand record retention requirements and related policies.
