@@ -14,10 +14,29 @@ A powerful and flexible knowledge base agent that processes, stores, and retriev
 - Vector similarity search using PostgreSQL/pgvector (or other backends)
 - Knowledge graph storage using PostgreSQL (or other backends like Neo4j)
 - Entity and relationship extraction using LLMs
+- Advanced RAG+KG query system with entity recognition and answer synthesis
+- Semantic chunking for optimal document segmentation
 - RESTful API with FastAPI
 - CLI interface for easy interaction
 - Comprehensive test suite
 - Docker support for easy deployment
+
+## 📈 SOTA Branch
+
+The `sota` branch offers state-of-the-art features designed to maximize semantic accuracy and leverage local GPU resources:
+
+- 🔍 **PyMuPDF** for superior PDF extraction with layout preservation
+- 🧠 **Semantic Chunking** using NLTK/spaCy for context-aware document segmentation
+- 🔮 **SentenceTransformers** for high-quality, GPU-accelerated embeddings
+- 🤖 **Local LLMs** (Mistral, Llama, etc.) for entity extraction with relationship support
+- 📊 **RAG+KG Query Engine** that combines vector search with knowledge graph queries
+- 💬 **LLM-powered Answer Synthesis** for comprehensive, accurate responses
+
+To use the SOTA features, use the `--advanced-query` flag when querying:
+
+```bash
+kb-agent query "What is the retention period for financial records?" --advanced-query
+```
 
 ## 🎯 Project Context: DataGovAI
 
@@ -36,19 +55,22 @@ The Knowledge Base Agent is built around a central `DocumentProcessor` which orc
 1.  **Input**: Documents can be ingested via the CLI (`kb-agent process`) or the REST API (`POST /api/documents`). Search queries are handled via the CLI (`kb-agent search`) or the API (`GET /api/search`).
 2.  **Processing**: When a document is processed:
     *   The `DocumentProcessor` receives the content and metadata.
-    *   It likely chunks the document into smaller segments.
-    *   An **Embedding Model** (e.g., `OpenAIEmbedding`) generates vector representations for the chunks.
-    *   The original content, metadata, and potentially extracted entities/relations are stored in the **Document Store** and **Knowledge Store** (e.g., Neo4j).
-    *   The vector embeddings are stored in the **Vector Store** (e.g., ChromaDB, Milvus) for efficient similarity search.
+    *   It chunks the document into smaller segments using semantic chunking.
+    *   An **Embedding Model** (e.g., `SentenceTransformerEmbedding`) generates vector representations for the chunks.
+    *   The original content, metadata, and extracted entities/relations are stored in the **Document Store** and **Knowledge Store**.
+    *   The vector embeddings are stored in the **Vector Store** for efficient similarity search.
 3.  **Search**: When a query is received:
-    *   The `DocumentProcessor` uses the **Embedding Model** to generate an embedding for the query.
-    *   It performs a similarity search against the vectors in the **Vector Store**.
-    *   Relevant document chunks are retrieved based on vector similarity scores.
-    *   Context might be enriched using information from the **Document Store** and **Knowledge Store**.
+    *   In standard mode: The processor performs semantic search to find relevant document chunks.
+    *   In advanced RAG+KG mode:
+        1. The `RAGKGQueryAgent` performs semantic search
+        2. It extracts entities from the query using an LLM
+        3. It executes targeted knowledge graph queries based on the entities
+        4. It aggregates semantic chunks and KG results
+        5. It uses an LLM to synthesize a comprehensive answer
 4.  **Interfaces**:
-    *   A **CLI** (`click`-based) provides command-line tools for processing, searching, and managing the agent.
-    *   A **REST API** (`FastAPI`-based) exposes the agent's functionality over HTTP.
-5.  **Configuration**: System settings (API keys, storage paths, model names, etc.) are managed via a configuration system (likely using `.env` files and Pydantic models as seen in `config.py`).
+    *   A **CLI** provides command-line tools for processing, searching, and managing the agent.
+    *   A **REST API** (FastAPI-based) exposes the agent's functionality over HTTP.
+5.  **Configuration**: System settings are managed via a configuration system using `.env` files.
 
 This modular design allows for flexibility in choosing different storage backends, embedding models, and processing techniques.
 
@@ -96,13 +118,21 @@ Create a `.env` file in your project root:
 # PostgreSQL (Development)
 POSTGRES_CONNECTION="postgresql://postgres@localhost:5432/knowledge_base"
 
-# OpenAI API
-OPENAI_API_KEY=your-api-key
-EMBEDDING_MODEL=text-embedding-ada-002
+# Embedding Configuration (SOTA)
+EMBEDDING_MODEL=all-mpnet-base-v2
+EMBEDDING_DEVICE=cuda
+EMBEDDING_BATCH_SIZE=32
+
+# LLM Extractor Configuration (SOTA)
+EXTRACTOR_MODEL=mistralai/Mistral-7B-Instruct-v0.2
+EXTRACTOR_DEVICE=cuda
+EXTRACTOR_4BIT=True
 
 # Processing
 BATCH_SIZE=100
-USE_LLM_FALLBACK=true
+MAX_CHUNK_SIZE=2000
+MIN_CHUNK_SIZE=200
+OVERLAP_SIZE=100
 ```
 
 ## 💡 Usage
@@ -111,12 +141,22 @@ USE_LLM_FALLBACK=true
 
 Process a document:
 ```bash
-kb-agent process path/to/document.txt --title "Document Title" --source "Source"
+kb-agent process --file path/to/document.txt --title "Document Title" --source "Source"
 ```
 
-Search the knowledge base:
+Process a directory:
 ```bash
-kb-agent search "your query" --limit 5
+kb-agent process --dir path/to/documents/ --pattern "*.pdf"
+```
+
+Search the knowledge base (standard):
+```bash
+kb-agent query "your query" --limit 5
+```
+
+Search with advanced RAG+KG (SOTA):
+```bash
+kb-agent query "your query" --advanced-query --verbose
 ```
 
 Start the API server:
@@ -217,10 +257,13 @@ for result in results:
 - ✅ Environment and configuration setup
 - ✅ PostgreSQL database initialization
 - ✅ Basic document processing pipeline
-- ✅ OpenAI embedding integration
-- 🔄 Batch processing implementation
-- 🔄 LLM fallback logic
-- 📝 Testing and documentation
+- ✅ Advanced PDF extraction (PyMuPDF)
+- ✅ Semantic chunking (NLTK)
+- ✅ SentenceTransformer embeddings with GPU acceleration
+- ✅ Enhanced LLM extraction with relationships
+- ✅ RAG+KG query system with LLM answer synthesis
+- 🔄 Testing and refinement
+- 📝 Documentation updates
 
 ## 🐳 Docker
 

@@ -8,6 +8,7 @@ import sys
 import os
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+import torch
 
 # Import PyMuPDF for enhanced PDF processing
 try:
@@ -30,6 +31,7 @@ from .embeddings.openai_embedding import OpenAIEmbedding
 # Import the new Sentence Transformer embedding class
 from .embeddings.sentence_transformer_embedding import SentenceTransformerEmbedding
 from .extractors.local_llm_extractor import LocalLlmExtractor
+from .query_agent import RAGKGQueryAgent
 
 # Import PostgreSQL storage implementations
 try:
@@ -53,110 +55,76 @@ def setup_logging(level: str = "INFO") -> None:
         ]
     )
 
-def create_processor(config):
-    """Create a processor with the appropriate stores based on configuration.
+def create_processor(config) -> DocumentProcessor:
+    """Create and configure a DocumentProcessor instance."""
     
-    Args:
-        config: Configuration object
-        
-    Returns:
-        DocumentProcessor: Configured processor instance
-    """
+    # Configure environment and logger
     logger = logging.getLogger(__name__)
     
-    # Initialize document store
-    if config.storage.document_store_type == "postgres" and POSTGRES_AVAILABLE:
-        logger.info("Using PostgreSQL document store")
+    # Determine what storage implementations to use
+    if POSTGRES_AVAILABLE and config.document_store.type == "postgresql":
+        logger.info("Using PostgreSQL storage implementations")
         document_store = PostgresDocumentStore(
-            storage_path=config.storage.storage_path,
-            connection_string=config.storage.postgres_connection
+            connection_string=config.postgres.connection,
+            table_name=config.document_store.table_name
         )
-    else:
-        logger.info("Using in-memory document store")
-        document_store = DocumentStore()
-    
-    # Initialize vector store
-    if config.storage.vector_store_type == "postgres" and POSTGRES_AVAILABLE:
-        logger.info("Using PostgreSQL vector store")
         vector_store = PostgresVectorStore(
-            storage_path=config.storage.storage_path,
-            connection_string=config.storage.postgres_connection
+            connection_string=config.postgres.connection,
+            table_name=config.vector_store.table_name
         )
-    else:
-        logger.info("Using in-memory vector store")
-        vector_store = VectorStore()
-    
-    # Initialize knowledge store
-    if config.storage.knowledge_store_type == "postgres" and POSTGRES_AVAILABLE:
-        logger.info("Using PostgreSQL knowledge store")
         knowledge_store = PostgresKnowledgeStore(
-            storage_path=config.storage.storage_path,
-            connection_string=config.storage.postgres_connection
+            connection_string=config.postgres.connection,
+            table_name=config.knowledge_store.table_name
         )
     else:
-        logger.info("Using in-memory knowledge store")
-        knowledge_store = KnowledgeStore()
-    
-    # Initialize embedding model based on configuration
-    model_name = config.embedding.model
-    logger.info(f"Initializing embedding model: {model_name}")
-    
-    # Check if the model name looks like a Sentence Transformer model
-    if '/' in model_name or model_name.startswith("all-") or model_name.startswith("msmarco-") or model_name.startswith("paraphrase-"):
-        logger.info("Detected Sentence Transformer model type.")
-        try:
-            embedding_model = SentenceTransformerEmbedding(
-                model=model_name,
-                batch_size=config.embedding.batch_size,
-                device=getattr(config.embedding, 'device', None)
-            )
-        except Exception as e:
-             logger.error(f"Failed to initialize SentenceTransformerEmbedding for {model_name}: {e}", exc_info=True)
-             raise RuntimeError(f"Could not initialize embedding model {model_name}") from e
-    else:
-        # Assume OpenAI model otherwise
-        logger.info("Detected OpenAI model type.")
-        if not config.embedding.api_key:
-            logger.error("OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.")
-            raise ValueError("OpenAI API key is required for OpenAI embedding models.")
-            
+        # For now, fall back to memory-based implementations
+        logger.warning("PostgreSQL not available or not configured. Using memory-based stores.")
+        # These would be simple in-memory implementations
+        
+    # Initialize embedding model
+    if config.embedding.model.startswith("text-embedding-") or config.embedding.provider == "openai":
+        # Use OpenAI if configured
+        logger.info(f"Using OpenAI embedding model: {config.embedding.model}")
         embedding_model = OpenAIEmbedding(
-            api_key=config.embedding.api_key,
-            model=model_name,
+            model=config.embedding.model,
+            api_key=config.openai.api_key,
             batch_size=config.embedding.batch_size
         )
-    
-    logger.info(f"Embedding model '{model_name}' initialized successfully.")
-    
-    # Initialize entity extractor based on configuration
-    extractor_config = getattr(config, 'extractor', None)
-    if extractor_config and getattr(extractor_config, 'use_local_llm', True):
-        logger.info("Initializing Local LLM Extractor")
-        try:
-            entity_extractor = LocalLlmExtractor(
-                model_name=getattr(extractor_config, 'model_name', "mistralai/Mistral-7B-Instruct-v0.2"),
-                device=getattr(extractor_config, 'device', None),
-                load_in_4bit=getattr(extractor_config, 'load_in_4bit', True),
-                max_length=getattr(extractor_config, 'max_length', 2048),
-                temperature=getattr(extractor_config, 'temperature', 0.1)
-            )
-            logger.info("Local LLM Extractor initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Local LLM Extractor: {e}", exc_info=True)
-            logger.warning("Proceeding without entity extractor")
-            entity_extractor = None
     else:
-        logger.info("Local LLM Extractor not configured, proceeding without it")
-        entity_extractor = None
-    
-    # Create processor
+        # Use Sentence Transformer model (local)
+        logger.info(f"Using Sentence Transformer embedding model: {config.embedding.model}")
+        device = getattr(config.embedding, 'device', None) or ("cuda" if torch.cuda.is_available() else "cpu")
+        embedding_model = SentenceTransformerEmbedding(
+            model=config.embedding.model,
+            batch_size=config.embedding.batch_size,
+            device=device
+        )
+        
+    # Initialize entity extractor
+    if hasattr(config, 'extractor') and hasattr(config.extractor, 'model'):
+        logger.info(f"Using Local LLM extractor with model: {config.extractor.model}")
+        # Use local LLM extractor
+        device = getattr(config.extractor, 'device', None) or ("cuda" if torch.cuda.is_available() else "cpu")
+        use_4bit = getattr(config.extractor, '4bit', True)
+        entity_extractor = LocalLlmExtractor(
+            model_name=config.extractor.model,
+            device=device,
+            load_in_4bit=use_4bit
+        )
+    else:
+        # Fall back to OpenAI-based extraction if no local LLM configured
+        logger.info("Using OpenAI-based entity extraction")
+        from .extractors.entity_extractor import EntityExtractor
+        entity_extractor = EntityExtractor(api_key=config.openai.api_key)
+        
+    # Create and return processor
     processor = DocumentProcessor(
-        vector_store=vector_store,
         document_store=document_store,
+        vector_store=vector_store,
         knowledge_store=knowledge_store,
         embedding_model=embedding_model,
         entity_extractor=entity_extractor,
-        config=config.processing
+        config=config
     )
     
     return processor
@@ -286,21 +254,69 @@ def query_knowledge_base(args: argparse.Namespace) -> None:
     # Use the new create_processor function
     processor = create_processor(config)
     
-    # Check if query method exists
-    if not hasattr(processor, 'query'):
-        logger.error("DocumentProcessor does not have a 'query' method.")
-        sys.exit(1)
-        
     logger.info(f"Executing query: {args.query}")
     try:
-        results = processor.query(
-            query=args.query,
-            limit=args.limit
-        )
-        
-        # Process and print results (adjust based on actual return type of processor.query)
-        logger.info(f"Query returned results: {results}") 
-        print(results)
+        # Use RAG+KG query agent if advanced_query is specified
+        if args.advanced_query:
+            logger.info("Using RAG+KG query agent for advanced retrieval")
+            # Create the query agent
+            query_agent = RAGKGQueryAgent(
+                processor=processor,
+                llm_model_name=config.extractor.model if hasattr(config, 'extractor') else "mistralai/Mistral-7B-Instruct-v0.2",
+                device=config.extractor.device if hasattr(config, 'extractor') else ("cuda" if torch.cuda.is_available() else "cpu"),
+                use_4bit=config.extractor.get('4bit', True) if hasattr(config, 'extractor') else True
+            )
+            
+            # Execute the query
+            results = query_agent.query(
+                query=args.query,
+                top_k=args.limit,
+                min_score=args.min_score if hasattr(args, 'min_score') else 0.6
+            )
+            
+            # Display answer
+            if results["success"]:
+                print("\n" + "=" * 80)
+                print("ANSWER:")
+                print(results["answer"])
+                print("=" * 80 + "\n")
+                
+                if args.verbose:
+                    print("\nVector Search Results:")
+                    for i, r in enumerate(results["vector_results"]):
+                        print(f"  Result {i+1} (Score: {r['score']:.2f}):")
+                        print(f"  {r['content'][:200]}...")
+                        print()
+                        
+                    print("\nExtracted Entities:")
+                    for entity_type, value in results["extracted_entities"].items():
+                        print(f"  {entity_type}: {value}")
+                        
+                    print("\nKnowledge Graph Results:")
+                    if results["knowledge_graph_results"]:
+                        for i, kg_result in enumerate(results["knowledge_graph_results"]):
+                            print(f"  Entity {i+1}: {kg_result.get('type', 'Unknown')} - {kg_result.get('value', 'Unknown')}")
+                    else:
+                        print("  No specific entities found in knowledge graph.")
+            else:
+                print(f"Query failed: {results['error']}")
+        else:
+            # Use standard processor query
+            results = processor.query(
+                query=args.query,
+                limit=args.limit
+            )
+            
+            # Process and print results
+            if results.get('success', False):
+                print(f"Query returned {len(results.get('results', []))} results:") 
+                for i, result in enumerate(results.get('results', [])):
+                    print(f"\nResult {i+1} (Score: {result.get('similarity', 0):.2f}):")
+                    print(f"Document: {result.get('document_id', 'Unknown')}")
+                    content = result.get('content', '')
+                    print(f"Content: {content[:500]}..." if len(content) > 500 else f"Content: {content}")
+            else:
+                print(f"Query failed: {results.get('error', 'Unknown error')}")
     except Exception as e:
         logger.error(f"Error during query: {e}", exc_info=True)
         sys.exit(1)
@@ -330,150 +346,52 @@ def export_knowledge_base(args: argparse.Namespace) -> None:
         logger.error(f"Error during export: {e}", exc_info=True)
         sys.exit(1)
 
-def main(args: Optional[list] = None) -> None:
-    """Main entry point for the CLI."""
-    parser = argparse.ArgumentParser(
-        description="Generic AI Agent for document processing and analysis"
-    )
+def main() -> None:
+    """Main function to parse arguments and execute commands."""
     
-    parser.add_argument(
-        "--config",
-        type=str,
-        help="Path to configuration file"
-    )
+    # Create the top-level parser
+    parser = argparse.ArgumentParser(description="Generic AI Agent")
     
-    # Add storage configuration arguments
-    storage_group = parser.add_argument_group('Storage Configuration')
-    storage_group.add_argument(
-        "--storage-path",
-        type=str,
-        help="Path for persistent storage"
-    )
-    storage_group.add_argument(
-        "--postgres-connection",
-        type=str,
-        help="PostgreSQL connection string (e.g., user:password@localhost:5432/dbname)"
-    )
-    storage_group.add_argument(
-        "--document-store-type",
-        choices=["memory", "postgres"],
-        default="memory",
-        help="Type of document store to use"
-    )
-    storage_group.add_argument(
-        "--vector-store-type",
-        choices=["memory", "postgres"],
-        default="memory",
-        help="Type of vector store to use"
-    )
-    storage_group.add_argument(
-        "--knowledge-store-type",
-        choices=["memory", "postgres"],
-        default="memory",
-        help="Type of knowledge store to use"
-    )
+    # Add common arguments
+    parser.add_argument("--config", default=".env", help="Configuration file path")
     
+    # Create sub-parsers for commands
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
     
-    # Process directory command
-    process_parser = subparsers.add_parser(
-        "process",
-        help="Process a directory of documents"
-    )
-    process_parser.add_argument(
-        "directory",
-        type=str,
-        help="Directory to process"
-    )
-    process_parser.add_argument(
-        "--no-recursive",
-        action="store_true",
-        help="Don't process subdirectories"
-    )
-    process_parser.add_argument(
-        "--file-types",
-        nargs="+",
-        help="File types to process"
-    )
-    process_parser.add_argument(
-        "--embedding-model",
-        default="text-embedding-ada-002",
-        help="Embedding model name"
-    )
-    process_parser.add_argument(
-        "--llm-model",
-        default="gpt-4-turbo-preview",
-        help="LLM model name"
-    )
+    # Command: process
+    process_parser = subparsers.add_parser("process", help="Process a document")
+    process_parser.add_argument("--file", help="Path to the document file")
+    process_parser.add_argument("--dir", help="Directory containing documents to process")
+    process_parser.add_argument("--pattern", help="File pattern to match (with --dir)")
     
-    # Query command
-    query_parser = subparsers.add_parser(
-        "query",
-        help="Query the knowledge base"
-    )
-    query_parser.add_argument(
-        "query",
-        type=str,
-        help="Query string"
-    )
-    query_parser.add_argument(
-        "--limit",
-        type=int,
-        default=10,
-        help="Maximum number of results"
-    )
-    query_parser.add_argument(
-        "--no-context",
-        action="store_true",
-        help="Don't include document context"
-    )
+    # Command: query
+    query_parser = subparsers.add_parser("query", help="Query the knowledge base")
+    query_parser.add_argument("query", help="Query string")
+    query_parser.add_argument("--limit", type=int, default=5, help="Maximum number of results")
+    query_parser.add_argument("--min-score", type=float, default=0.6, help="Minimum similarity score")
+    query_parser.add_argument("--advanced-query", action="store_true", help="Use RAG+KG for advanced querying")
+    query_parser.add_argument("--verbose", action="store_true", help="Show detailed results")
     
-    # Export command
-    export_parser = subparsers.add_parser(
-        "export",
-        help="Export the knowledge base"
-    )
-    export_parser.add_argument(
-        "output_dir",
-        type=str,
-        help="Output directory"
-    )
-    export_parser.add_argument(
-        "--format",
-        default="turtle",
-        help="Export format"
-    )
+    # Parse arguments
+    args = parser.parse_args()
     
-    args = parser.parse_args(args)
-    
-    # Set up logging
-    setup_logging()
-    
-    # Override config from command line args if provided
-    config = get_config(args.config)
-    if hasattr(args, 'storage_path') and args.storage_path:
-        config.storage.storage_path = args.storage_path
-    if hasattr(args, 'postgres_connection') and args.postgres_connection:
-        config.storage.postgres_connection = args.postgres_connection
-    if hasattr(args, 'document_store_type') and args.document_store_type:
-        config.storage.document_store_type = args.document_store_type
-    if hasattr(args, 'vector_store_type') and args.vector_store_type:
-        config.storage.vector_store_type = args.vector_store_type
-    if hasattr(args, 'knowledge_store_type') and args.knowledge_store_type:
-        config.storage.knowledge_store_type = args.knowledge_store_type
-    
-    try:
-        if args.command == "process":
+    # Execute the appropriate command
+    if args.command == "process":
+        if args.file:
+            # Process a single file
+            process_file(args)
+        elif args.dir:
+            # Process all files in a directory
             process_directory(args)
-        elif args.command == "query":
-            query_knowledge_base(args)
-        elif args.command == "export":
-            export_knowledge_base(args)
         else:
-            parser.print_help()
+            print("Error: Either --file or --dir must be specified")
             sys.exit(1)
-    except Exception as e:
-        logging.error(f"Error: {str(e)}")
+    elif args.command == "query":
+        # Query the knowledge base
+        query_knowledge_base(args)
+    else:
+        # No command or unknown command
+        parser.print_help()
         sys.exit(1)
 
 if __name__ == "__main__":
