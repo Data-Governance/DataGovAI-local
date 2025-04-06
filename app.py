@@ -606,6 +606,11 @@ with st.sidebar:
     
 
 # Main Content Area
+# Display logo at the top of the main content
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.image("./logo.png", width=200)
+
 st.title("DataGovAI - Utah GRS Knowledge Base Agent") # Updated Title
 
 # Show session status if a conversation is in progress
