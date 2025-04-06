@@ -1,4 +1,8 @@
-# 🧠 DataGovAI - Utah GRS Knowledge Base Agent
+# DataGovAI - Utah GRS Knowledge Base Agent
+
+<p align="center">
+  <img src="./logo" alt="DataGovAI Logo" width="200"/>
+</p>
 
 A proprietary knowledge base agent developed by the Utah Office of Data Privacy (ODP) for processing and managing Utah's General Retention Schedules (GRS). This system helps government entities efficiently access and understand record retention requirements and related policies.
 
@@ -54,8 +58,8 @@ python scripts/init_db.py
 
 3. Run:
 ```bash
-python app.py
-# Visit http://localhost:5000
+streamlit run app.py
+# Visit http://localhost:8501
 ```
 
 ## 💬 Usage Examples

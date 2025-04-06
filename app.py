@@ -5,6 +5,7 @@ import logging
 from typing import List, Dict, Tuple
 # Import torch early for CUDA checks
 import torch 
+from PIL import Image
 
 # Disable Streamlit's file watcher - This helps avoid the torch.classes issue
 os.environ['STREAMLIT_FILE_WATCHER_TYPE'] = 'none'
@@ -484,12 +485,20 @@ You have access to the previous conversation and context. Reference this informa
 
 # --- Streamlit UI ---
 
+# Set page config
 st.set_page_config(
-    page_title="Utah GRS Knowledge Base Agent",
-    page_icon="📚",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="DataGovAI - Utah GRS Knowledge Base Agent",
+    page_icon="./logo",
+    layout="wide"
 )
+
+# Display logo
+logo = Image.open("./logo")
+col1, col2, col3 = st.columns([1,2,1])
+with col2:
+    st.image(logo, width=200)
+
+st.title("DataGovAI - Utah GRS Knowledge Base Agent")
 
 # Custom CSS for better styling
 st.markdown("""

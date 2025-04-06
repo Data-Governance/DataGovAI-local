@@ -20,7 +20,7 @@ DataGovAI/
 ├── app/                # Main application code
 │   ├── static/        # CSS, JS, and assets
 │   └── templates/     # HTML templates
-├── app.py             # Flask application
+├── app.py             # Streamlit application
 ├── data/              # Document storage
 ├── docs/              # Documentation
 ├── scripts/           # Utility scripts
@@ -57,24 +57,37 @@ cp .env.example .env
 python scripts/init_db.py
 ```
 
-6. Configure Gunicorn:
+6. Configure Streamlit:
 ```bash
-# gunicorn.conf.py
-workers = 4
-bind = "0.0.0.0:8000"
-worker_class = "uvicorn.workers.UvicornWorker"
+mkdir -p ~/.streamlit
+cat > ~/.streamlit/config.toml << EOF
+[server]
+port = 8501
+address = "0.0.0.0"
+baseUrlPath = ""
+
+[browser]
+serverAddress = "api.example.com"
+serverPort = 8501
+
+[theme]
+primaryColor = "#FF4B4B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"
+EOF
 ```
 
 7. Start the application:
 ```bash
-gunicorn app:app
+streamlit run app.py --server.port 8501 --server.address 0.0.0.0
 ```
 
 ## Environment Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| FLASK_ENV | Environment type | `production` |
 | DEBUG | Debug mode | `False` |
 | DATABASE_URL | PostgreSQL connection | `postgresql://user:pass@host:5432/db` |
 | REDIS_URL | Redis connection | `redis://localhost:6379/0` |
@@ -94,9 +107,13 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
 
     location / {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:8501;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_cache_bypass $http_upgrade;
     }
 }
 ```
@@ -179,7 +196,7 @@ global:
 scrape_configs:
   - job_name: 'datagovai'
     static_configs:
-      - targets: ['localhost:8000']
+      - targets: ['localhost:8501']
 EOF
 
 # Start services

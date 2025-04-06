@@ -208,7 +208,8 @@ python scripts/init_db.py
 
 6. Run the application:
 ```bash
-python app.py
+streamlit run app.py
+# Visit http://localhost:8501
 ```
 
 ## Development Workflow
