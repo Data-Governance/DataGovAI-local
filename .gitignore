@@ -25,6 +25,10 @@ venv/
 ENV/
 env/
 .env
+# RAG environments
+rag_core_env/
+rag_ui_env/
+chatbot/
 
 # IDE
 .idea/
@@ -67,4 +71,9 @@ docs/_build/
 node_modules/
 
 # Jupyter Notebook
-.ipynb_checkpoints 
+.ipynb_checkpoints
+
+# CUDA profiling files
+*.nsys-rep
+*.nvprof
+*.nvvp 
