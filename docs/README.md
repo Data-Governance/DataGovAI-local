@@ -1,101 +1,73 @@
-# Knowledge Base Agent Documentation
+# 📚 DataGovAI Documentation
 
-This directory contains comprehensive documentation for the Knowledge Base Agent project.
+Welcome to the comprehensive documentation for DataGovAI, the Utah Office of Data Privacy's GRS Knowledge Base Agent. This documentation covers both the standard and SOTA (State-of-the-Art) implementations.
 
-## 📚 How to Use This Documentation
+## 📑 Documentation Structure
 
-Start by reading the [index.md](index.md) file, which provides an overview of all available documentation resources.
+| Category | Description | Key Documents |
+|----------|-------------|---------------|
+| 🚀 Getting Started | Quick setup and basic usage | - [Quick Start Guide](guides/quick_start.md)<br>- [Environment Setup](ENVIRONMENT_SETUP.md) |
+| 🏗️ Architecture | System design and components | - [Architecture Overview](architecture/README.md)<br>- [Component Details](components/README.md) |
+| 💡 Knowledge Base | Core KB functionality | - [KB Overview](knowledge_base/README.md)<br>- [Data Models](knowledge_base/data_models.md) |
+| 🔧 Development | Development guidelines | - [Development Guide](development/README.md)<br>- [SOTA Implementation](development/sota_implementation.md) |
+| 🌐 API Reference | API documentation | - [REST API](api-reference/rest_api.md)<br>- [Python API](api-reference/python_api.md) |
+| 📊 Examples | Usage examples | - [Code Examples](examples/README.md)<br>- [Query Examples](examples/queries.md) |
 
-The documentation is organized into different sections:
+## 🔍 Quick Links
 
-- **Architecture**: Design of the system components
-- **Components**: Details of specific modules
-- **Guides**: How-to instructions
-- **API Reference**: Technical reference
+### For Users
+- [Installation Guide](guides/installation.md)
+- [Configuration Guide](guides/configuration.md)
+- [Usage Examples](examples/README.md)
+- [Troubleshooting](guides/troubleshooting.md)
 
-## 🔑 Key Documents
+### For Developers
+- [Development Setup](development/README.md)
+- [Architecture Overview](architecture/README.md)
+- [API Documentation](api-reference/README.md)
+- [Testing Guide](development/testing.md)
 
-| Document | Description |
-|----------|-------------|
-| [Architecture Overview](architecture/overview.md) | High-level system design and data flow |
-| [Getting Started](guides/getting_started.md) | Setting up and using the system |
-| [Development Tracking](guides/development_tracking.md) | How to track development progress |
-| [RAG+KG Query Agent](components/query_agent.md) | Details of the hybrid query system |
+### For Administrators
+- [Deployment Guide](guides/deployment.md)
+- [Monitoring Guide](guides/monitoring.md)
+- [Backup & Recovery](guides/backup_recovery.md)
 
-## 🚀 Development Plan
+## 🛠️ Core Components
 
-The [DEVELOPMENT_PLAN_SOTA.md](../DEVELOPMENT_PLAN_SOTA.md) file in the project root is the central reference for all development activities. Always check it before making code changes.
+1. **Document Processing**
+   - PyMuPDF for PDF extraction
+   - NLTK/spaCy for semantic chunking
+   - SentenceTransformers for embeddings
 
-To get a quick summary of the development status, run:
+2. **Knowledge Storage**
+   - PostgreSQL with pgvector
+   - Vector store for embeddings
+   - Knowledge graph for relationships
 
-```bash
-python scripts/check_plan.py
-```
+3. **Query Processing**
+   - Hybrid RAG + KG approach
+   - Local LLM integration
+   - Advanced semantic search
 
-## 📝 Contributing to Documentation
+## 📈 Documentation Updates
 
-1. Follow the existing structure and formatting
-2. Update documentation whenever you make code changes
-3. Use clear, concise language
-4. Include code examples where appropriate
-5. Reference specific files or classes when describing functionality
+| Date | Version | Description |
+|------|---------|-------------|
+| 2024-04-06 | 2.0.0 | SOTA implementation documentation |
+| 2024-04-05 | 1.1.0 | Added comprehensive API docs |
+| 2024-04-04 | 1.0.0 | Initial documentation release |
 
-## 🔄 Document Generation
+## 💬 Support
 
-Some documentation files might be generated automatically from code comments. 
-Please do not edit these files directly, but update the source code comments instead.
+For technical support or questions about this documentation:
+- Email: support@datagovai.utah.gov
+- Internal Wiki: [DataGovAI Support Portal]
+- Issue Tracker: [GitHub Issues]
 
-## 📊 Documentation Status
+## 📝 License
 
-The current documentation focuses on:
+This documentation and the DataGovAI system are proprietary and confidential to the Utah Office of Data Privacy. All rights reserved.
 
-- Core architecture and design
-- RAG+KG query system
-- Development process and tracking
-- Basic usage guides
+---
 
-Future documentation improvements are planned for:
-
-- Storage schema details
-- Performance optimization techniques
-- Advanced configuration options
-- API reference
-
-## 📋 Documentation Checklist
-
-When implementing a feature, ensure you update the relevant documentation:
-
-1. Update task status in DEVELOPMENT_PLAN_SOTA.md
-2. Update component documentation if you modify a specific component
-3. Update guides if the usage pattern changes
-4. Review the architecture documentation if system design changes 
-
-## 🚀 Documentation Improvements
-
-The documentation in this project has been significantly improved with:
-
-1. **Structured Directory Organization**:
-   - `architecture/`: System design and architecture diagrams
-   - `components/`: Detailed documentation for specific modules
-   - `guides/`: How-to guides for setup, usage, and development
-   - `api-reference/`: Command and function references
-
-2. **Development Plan Integration**:
-   - Clear links between documentation and development plan
-   - Scripts to check development status
-   - Git hooks to remind about plan updates
-
-3. **Detailed Component Documentation**:
-   - RAG+KG Query Agent documentation with flow diagrams
-   - Architecture overview with comprehensive data flow explanation
-   - Getting started guide with step-by-step instructions
-
-4. **Process Guidance**:
-   - Development tracking guide with status indicators
-   - Documentation README with contribution guidelines
-   - Git hooks to automate documentation checks
-
-5. **Helper Scripts**:
-   - `check_plan.py`: Analyzes development plan status
-   - `check_docs.py`: Finds relevant documentation for components
-   - `install_hooks.py`: Sets up Git hooks for development workflow 
+**Note**: Keep the [Progress Log](progress_log.md) updated when making significant changes to the documentation or implementation. 
