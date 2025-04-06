@@ -13,25 +13,53 @@ from ..exceptions import ExtractionError
 
 logger = logging.getLogger(__name__)
 
-EXTRACTION_PROMPT = """Extract the following information from the given text. Return the information in JSON format with these fields:
+EXTRACTION_PROMPT = """Extract the following information from the given text. Return the information in a structured JSON format.
+
+ENTITIES:
 - record_series_number: The record series number (if present)
 - title: The title of the record series
 - description: A description of what the record series contains
-- retention_period: How long the records should be kept
-- disposition_action: What should be done with the records after the retention period (e.g., destroy, transfer to archives)
+- retention_period: How long the records should be kept (e.g., "3 years", "permanent")
+- disposition_action: What should be done with the records after the retention period (e.g., "destroy", "transfer to archives")
 - legal_authorities: Any legal citations or authorities mentioned
+
+RELATIONSHIPS:
+For each entity, also identify relationships between entities. Common relationships include:
+- HAS_RETENTION: Links a record series to its retention period
+- HAS_DISPOSITION: Links a record series to its disposition action
+- CITES_AUTHORITY: Links a record series to legal authorities
+- RELATED_TO: Links related record series together (if mentioned)
 
 Text to analyze:
 {text}
 
-Return ONLY the JSON object, no other text. Use null for missing fields. Format:
+Return ONLY the following JSON structure, no other text. Use null for missing fields:
 {
-    "record_series_number": string or null,
-    "title": string or null,
-    "description": string or null,
-    "retention_period": string or null,
-    "disposition_action": string or null,
-    "legal_authorities": string or null
+    "entities": {
+        "record_series_number": string or null,
+        "title": string or null,
+        "description": string or null,
+        "retention_period": string or null,
+        "disposition_action": string or null,
+        "legal_authorities": string or null
+    },
+    "relationships": [
+        {
+            "source": "record_series_number",
+            "relationship_type": "HAS_RETENTION",
+            "target": "retention_period"
+        },
+        {
+            "source": "record_series_number",
+            "relationship_type": "HAS_DISPOSITION",
+            "target": "disposition_action"
+        },
+        {
+            "source": "record_series_number",
+            "relationship_type": "CITES_AUTHORITY",
+            "target": "legal_authorities"
+        }
+    ]
 }"""
 
 class LocalLlmExtractor(BaseEntityExtractor):
@@ -132,20 +160,41 @@ class LocalLlmExtractor(BaseEntityExtractor):
             json_str = response[start:end]
             result = json.loads(json_str)
             
-            # Ensure all required fields are present (even if null)
-            required_fields = [
-                "record_series_number",
-                "title",
-                "description",
-                "retention_period",
-                "disposition_action",
-                "legal_authorities"
-            ]
+            # Ensure the right structure exists
+            if "entities" not in result:
+                # If the old format was returned, restructure it
+                entities = {}
+                for field in ["record_series_number", "title", "description", 
+                             "retention_period", "disposition_action", "legal_authorities"]:
+                    entities[field] = result.get(field, None)
+                
+                # Create default relationships if they don't exist
+                relationships = []
+                if "relationships" not in result and entities.get("record_series_number"):
+                    if entities.get("retention_period"):
+                        relationships.append({
+                            "source": "record_series_number",
+                            "relationship_type": "HAS_RETENTION",
+                            "target": "retention_period"
+                        })
+                    if entities.get("disposition_action"):
+                        relationships.append({
+                            "source": "record_series_number",
+                            "relationship_type": "HAS_DISPOSITION",
+                            "target": "disposition_action"
+                        })
+                    if entities.get("legal_authorities"):
+                        relationships.append({
+                            "source": "record_series_number",
+                            "relationship_type": "CITES_AUTHORITY",
+                            "target": "legal_authorities"
+                        })
+                
+                result = {
+                    "entities": entities,
+                    "relationships": relationships
+                }
             
-            for field in required_fields:
-                if field not in result:
-                    result[field] = None
-                    
             return result
             
         except Exception as e:

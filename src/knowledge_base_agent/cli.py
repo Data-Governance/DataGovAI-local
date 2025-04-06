@@ -9,12 +9,17 @@ import os
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-# Attempt to import PyPDF2 for PDF processing
+# Import PyMuPDF for enhanced PDF processing
 try:
-    import PyPDF2
+    import fitz  # PyMuPDF
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
+    try:
+        import PyPDF2
+        PYPDF_FALLBACK = True
+    except ImportError:
+        PYPDF_FALLBACK = False
 
 from .processor import DocumentProcessor
 from .config import get_config
@@ -206,22 +211,41 @@ def process_directory(args: argparse.Namespace) -> None:
             if file_path.suffix.lower() == '.pdf':
                 if PDF_AVAILABLE:
                     try:
-                        with open(file_path, 'rb') as pdf_file:
-                            reader = PyPDF2.PdfReader(pdf_file)
-                            text_content = []
-                            for page in reader.pages:
-                                text_content.append(page.extract_text() or "") # Add fallback for empty pages
-                            content = "\n".join(text_content)
+                        # Use PyMuPDF (fitz) for better PDF text extraction
+                        pdf_document = fitz.open(file_path)
+                        text_content = []
+                        for page_num in range(len(pdf_document)):
+                            page = pdf_document[page_num]
+                            text_content.append(page.get_text())
+                        content = "\n".join(text_content)
+                        pdf_document.close()
+                        
                         if not content.strip():
                             logger.warning(f"Extracted empty content from PDF: {file_path}")
                             # Optionally skip or handle empty PDFs differently
                             # continue 
                     except Exception as pdf_err:
-                        logger.error(f"Error reading PDF file {file_path} with PyPDF2: {pdf_err}")
-                        failed_count += 1
-                        continue # Skip to next file on PDF read error
+                        logger.error(f"Error reading PDF file {file_path} with PyMuPDF: {pdf_err}")
+                        
+                        # Fall back to PyPDF2 if available
+                        if PYPDF_FALLBACK:
+                            logger.info(f"Attempting fallback to PyPDF2 for {file_path}")
+                            try:
+                                with open(file_path, 'rb') as pdf_file:
+                                    reader = PyPDF2.PdfReader(pdf_file)
+                                    text_content = []
+                                    for page in reader.pages:
+                                        text_content.append(page.extract_text() or "")
+                                    content = "\n".join(text_content)
+                            except Exception as pypdf_err:
+                                logger.error(f"Fallback to PyPDF2 also failed: {pypdf_err}")
+                                failed_count += 1
+                                continue
+                        else:
+                            failed_count += 1
+                            continue # Skip to next file on PDF read error
                 else:
-                    logger.warning(f"Skipping PDF file {file_path}, PyPDF2 library not found. Please install it.")
+                    logger.warning(f"Skipping PDF file {file_path}, PDF libraries not found. Please install pymupdf or pypdf2.")
                     continue # Skip if PDF library is not available
             else:
                 # Assume text file for other types

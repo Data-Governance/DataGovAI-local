@@ -30,7 +30,7 @@ from .models import (
 from .storage.knowledge_store import KnowledgeStore
 from .embeddings.base import BaseEmbeddingModel
 from .extractors.local_llm_extractor import LocalLlmExtractor
-from .utils.text import split_into_chunks
+from .utils.text import semantic_chunk_document
 from .exceptions import (
     ProcessingError,
     EntityExtractionError,
@@ -42,37 +42,31 @@ from .exceptions import (
 logging.basicConfig(level=os.getenv('LOG_LEVEL', 'INFO'))
 logger = logging.getLogger(__name__)
 
-# Helper function for chunking (can be moved to utils if preferred)
-def chunk_document(text: str, config: ProcessingConfig, tokenizer) -> List[str]:
-    """Splits text into chunks based on token count."""
-    tokens = tokenizer.encode(text)
-    chunks = []
-    start = 0
-    while start < len(tokens):
-        end = min(start + config.max_chunk_size, len(tokens))
-        # Ensure chunk boundaries are respected (optional, depending on strategy)
-        # You might want to split at sentence boundaries near the max_chunk_size
-        chunk_tokens = tokens[start:end]
-        chunks.append(tokenizer.decode(chunk_tokens))
-        # Move start position, considering overlap
-        next_start = start + config.max_chunk_size - config.overlap_size
-        # Ensure next start doesn't regress or stay the same if overlap is large
-        if next_start <= start:
-            next_start = start + 1 # Force progression
-        start = next_start
-        # Prevent infinite loop on very short documents/large overlaps
-        if start >= len(tokens):
-            break
-            
-    # Filter out potential small trailing chunks if needed
-    filtered_chunks = [chunk for chunk in chunks if len(tokenizer.encode(chunk)) >= config.min_chunk_size]
-    # Handle case where filtering removes all chunks (e.g., very short doc)
-    if not filtered_chunks and chunks:
-        return [chunks[0]] # Return the first chunk if it exists
-    elif not filtered_chunks and not chunks:
-        return [] # Return empty list if no chunks were generated initially
+# Replacing the old chunking function with our new semantic approach
+def chunk_document(text: str, config: ProcessingConfig, tokenizer=None) -> List[str]:
+    """Splits text into semantic chunks based on sentence boundaries.
+    
+    This is a wrapper around the semantic_chunk_document function that returns
+    just the content of each chunk rather than the full chunk objects.
+    
+    Args:
+        text: Document text to chunk
+        config: Processing configuration containing chunk size parameters
+        tokenizer: Optional tokenizer (not used in semantic chunking)
         
-    return filtered_chunks
+    Returns:
+        List of chunk text strings
+    """
+    # Use the semantic chunking function
+    chunks = semantic_chunk_document(
+        text=text,
+        max_chunk_size=config.max_chunk_size,
+        min_chunk_size=config.min_chunk_size,
+        overlap_sentences=1  # Use a sensible default for sentence overlap
+    )
+    
+    # Extract just the content field from each chunk
+    return [chunk["content"] for chunk in chunks]
 
 class DocumentProcessor:
     """Process and store documents with both vector embeddings and knowledge graph representation."""

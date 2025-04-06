@@ -1,0 +1,79 @@
+---
+name: knowledge-base-agent-sota
+description: Development guidelines for the Knowledge Base Agent project (SOTA branch)
+globs: 
+  - "src/knowledge_base_agent/**/*.py"
+  - "tests/**/*.py"
+  - "DEVELOPMENT_PLAN_SOTA.md"
+matches:
+  - "**/*.py"
+  - "**/*.md"
+---
+
+# Knowledge Base Agent - SOTA Branch Development Guidelines
+
+This project implements a state-of-the-art version of the Knowledge Base Agent for Utah's General Retention Schedules (GRS), focusing on semantic accuracy and advanced NLP techniques.
+
+## CRITICAL: Development Plan Maintenance
+- **ALWAYS check DEVELOPMENT_PLAN_SOTA.md before and after making changes**
+- **Update task status in DEVELOPMENT_PLAN_SOTA.md after completing each step (✅, 🔄, etc.)**
+- **Ensure all code changes align with the plan described in DEVELOPMENT_PLAN_SOTA.md**
+- **Never deviate from the implementation steps without updating the plan first**
+- **Keep the status indicators current for easy progress tracking**
+
+## Project Context
+The SOTA branch focuses on maximizing semantic accuracy over raw performance, using:
+- PyMuPDF for better PDF extraction
+- NLTK/spaCy for semantic chunking 
+- SentenceTransformers for high-quality embeddings
+- Local LLMs for entity extraction
+- PostgreSQL with pgvector for storage
+
+## Environment Setup
+- Use Python 3.10+
+- Activate the virtual environment: `source sota_venv/bin/activate`
+- Required packages: pymupdf, nltk, spacy, sentence-transformers, torch, transformers, bitsandbytes
+- GPU required for optimal performance (CUDA 12.0+)
+
+## Core Components
+- `processor.py`: Core document processing, semantic chunking via `semantic_chunk_document`
+- `utils/text.py`: Contains text utilities including the semantic chunking implementation
+- `embeddings/sentence_transformer_embedding.py`: GPU-accelerated embedding generation
+- `extractors/local_llm_extractor.py`: Entity extraction using local LLMs with relationship support
+- `cli.py`: Command line interface with PyMuPDF for PDF processing
+
+## Configuration
+Required environment variables in `.env`:
+```
+# Embedding Configuration
+EMBEDDING_MODEL=all-mpnet-base-v2
+EMBEDDING_DEVICE=cuda
+EMBEDDING_BATCH_SIZE=32
+
+# LLM Extractor Configuration
+EXTRACTOR_MODEL=mistralai/Mistral-7B-Instruct-v0.2
+EXTRACTOR_DEVICE=cuda
+EXTRACTOR_4BIT=True
+
+# PostgreSQL Configuration
+POSTGRES_CONNECTION=postgresql://kb_agent_user:password@localhost:5432/knowledge_base
+```
+
+## Implementation Plan
+Follow the implementation plan in `DEVELOPMENT_PLAN_SOTA.md` closely:
+1. ✅ Environment Setup - Use GPU with CUDA support
+2. ✅ Semantic Embeddings - Verify SentenceTransformerEmbedding implementation
+3. ✅ Enhanced LLM Extraction - Improved prompt with relationships support
+4. ✅ Advanced Parsing - PyMuPDF for better PDF processing
+5. ✅ Semantic Chunking - Sentence-level document chunking
+6. 🔄 RAG+KG Query Logic - Next priority for implementation
+7. 🔄 Testing and Refinement - Ongoing
+
+## Code Standards
+- Always test changes with both CPU and GPU configurations
+- Maintain detailed docstrings with type hints
+- Validate against sample GRS documents
+- Keep DEVELOPMENT_PLAN_SOTA.md updated as tasks progress
+- Prioritize semantic accuracy over processing speed
+
+Before each commit, verify that DEVELOPMENT_PLAN_SOTA.md accurately reflects the current implementation status. 

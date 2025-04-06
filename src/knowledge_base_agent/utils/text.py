@@ -101,4 +101,82 @@ def get_text_stats(text: str) -> dict:
         "sentence_count": len(sentences),
         "avg_word_length": sum(len(w) for w in words) / len(words) if words else 0,
         "avg_sentence_length": len(words) / len(sentences) if sentences else 0
-    } 
+    }
+
+def semantic_chunk_document(
+    text: str,
+    max_chunk_size: int = 1000,
+    min_chunk_size: int = 100,
+    overlap_sentences: int = 1
+) -> List[Dict[str, Any]]:
+    """Split document into semantic chunks preserving sentence boundaries.
+    
+    This method uses NLTK to split text into sentences, then groups them
+    into coherent chunks that respect semantic boundaries.
+    
+    Args:
+        text: The document text to chunk
+        max_chunk_size: Maximum size of a chunk in characters
+        min_chunk_size: Minimum size of a chunk in characters
+        overlap_sentences: Number of sentences to overlap between chunks
+        
+    Returns:
+        List of chunks with metadata (content, start, end)
+    """
+    if not text or len(text) <= min_chunk_size:
+        return [{"content": text, "start": 0, "end": len(text)}]
+    
+    # Split into sentences
+    sentences = sent_tokenize(text)
+    
+    if not sentences:
+        return [{"content": text, "start": 0, "end": len(text)}]
+    
+    chunks = []
+    current_chunk = []
+    current_size = 0
+    last_sentences = []  # Track sentences for overlap
+    
+    for sentence in sentences:
+        sentence_len = len(sentence)
+        
+        # If adding this sentence would exceed max_chunk_size and we already have content,
+        # finalize the current chunk
+        if current_size + sentence_len > max_chunk_size and current_chunk:
+            # Join the current chunk sentences
+            chunk_text = " ".join(current_chunk)
+            start_pos = text.find(current_chunk[0])
+            end_pos = start_pos + len(chunk_text)
+            
+            chunks.append({
+                "content": chunk_text,
+                "start": start_pos,
+                "end": end_pos
+            })
+            
+            # Start a new chunk with overlap
+            current_chunk = last_sentences[-overlap_sentences:] if overlap_sentences > 0 and last_sentences else []
+            current_size = sum(len(s) for s in current_chunk) + len(current_chunk) - 1 if current_chunk else 0
+            
+        # Add the current sentence
+        current_chunk.append(sentence)
+        current_size += sentence_len + 1  # +1 for space
+        
+        # Update last_sentences
+        last_sentences.append(sentence)
+        if len(last_sentences) > overlap_sentences:
+            last_sentences.pop(0)
+    
+    # Add the final chunk if there's anything left
+    if current_chunk:
+        chunk_text = " ".join(current_chunk)
+        start_pos = text.find(current_chunk[0])
+        end_pos = start_pos + len(chunk_text)
+        
+        chunks.append({
+            "content": chunk_text,
+            "start": start_pos,
+            "end": end_pos
+        })
+    
+    return chunks 
