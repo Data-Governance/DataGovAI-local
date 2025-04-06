@@ -104,14 +104,16 @@ This section outlines the complete data processing and query pipeline:
 ## Implementation Plan
 
 **1. Environment Setup:**
-    *   **Verify CUDA/GPU:** Ensure conda `sota` environment has PyTorch 2.5.1+ for CUDA 12.1+.
-        *   *Status:* ✅ VERIFIED - GPU is available with CUDA 12.4
-        *   *Action:* Created Python virtual environment `sota_venv` with required dependencies
+    *   **Verify CUDA/GPU:** Ensure conda `chatbot` environment has PyTorch with CUDA support.
+        *   *Status:* ✅ VERIFIED - GPU is available with CUDA 11.8
+        *   *Action:* Created conda environment `chatbot` with required dependencies
         *   *Command:* `python -c "import torch; print(torch.cuda.is_available(), torch.version.cuda)"`
-    *   **Install Dependencies:** Use conda/pip within the `sota` environment.
-        *   *Status:* ✅ COMPLETED - Base dependencies installed
-        *   *Command:* `pip install pymupdf nltk spacy sentence-transformers torch transformers bitsandbytes`
-        *   *Command:* `python -m nltk.downloader punkt && python -m spacy download en_core_web_sm`
+    *   **Document Environment Setup:** Create documentation for environment setup.
+        *   *Status:* ✅ COMPLETED - Created ENVIRONMENT_SETUP.md with detailed instructions
+        *   *Action:* Added documentation and exported chatbot_environment.yml for easy reproduction
+    *   **Install Dependencies:** Use conda within the `chatbot` environment.
+        *   *Status:* ✅ COMPLETED - Base dependencies installed in conda environment
+        *   *Command:* `conda env create -f chatbot_environment.yml`
 
 **2. Database Setup (Schema):**
     *   **Create Database & Extension:** Create `knowledge_base` DB and enable `pgvector`.

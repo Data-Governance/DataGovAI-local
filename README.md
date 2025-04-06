@@ -135,7 +135,23 @@ To ensure all development stays aligned with the overall plan:
 
 ## 🔧 Installation
 
-### Using pip
+### Environment Setup
+
+For optimal performance with GPU acceleration, we recommend using the provided conda environment:
+
+```bash
+# Create the conda environment
+conda env create -f chatbot_environment.yml
+
+# Activate the environment
+conda activate chatbot
+```
+
+For detailed environment setup instructions, see [Environment Setup Documentation](docs/ENVIRONMENT_SETUP.md).
+
+### Traditional Installation
+
+Alternatively, you can install the package using pip:
 
 ```bash
 pip install knowledge-base-agent
