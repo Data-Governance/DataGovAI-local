@@ -29,27 +29,24 @@ def initialize_database(config) -> bool:
         
         # Create document store tables
         doc_store = PostgresDocumentStore(
-            connection_string=config.postgres.connection,
-            table_name=config.document_store.table_name
+            connection_string=config.storage.postgres_connection
         )
         doc_store.initialize()
-        logger.info(f"Document store initialized with table: {config.document_store.table_name}")
+        logger.info(f"Document store initialized")
         
         # Create vector store tables with pgvector support
         vector_store = PostgresVectorStore(
-            connection_string=config.postgres.connection,
-            table_name=config.vector_store.table_name
+            connection_string=config.storage.postgres_connection
         )
         vector_store.initialize()
-        logger.info(f"Vector store initialized with table: {config.vector_store.table_name}")
+        logger.info(f"Vector store initialized")
         
         # Create knowledge store tables
         kg_store = PostgresKnowledgeStore(
-            connection_string=config.postgres.connection,
-            table_name=config.knowledge_store.table_name
+            connection_string=config.storage.postgres_connection
         )
         kg_store.initialize()
-        logger.info(f"Knowledge store initialized with table: {config.knowledge_store.table_name}")
+        logger.info(f"Knowledge store initialized")
         
         return True
         

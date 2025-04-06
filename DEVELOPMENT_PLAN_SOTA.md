@@ -63,6 +63,44 @@ This section outlines the complete data processing and query pipeline:
         5. Use LLM to synthesize a final answer from the aggregated context.
     *   **Output:** Detailed, accurate, context-aware answer.
 
+**7. Testing and Refinement:**
+    *   **Unit Tests:** Add/update tests in `tests/` for new components (parsing, chunking, extractor prompts, query logic).
+        *   *Status:* ✅ COMPLETED - Created `test_query_agent.py` for RAG+KG functionality
+    *   **Integration Tests:** Test the end-to-end `process` and `query` commands with a small, representative set of GRS documents.
+        *   *Status:* ✅ COMPLETED - Created `create_knowledge_base.py` and `query_knowledge_base.py` scripts
+    *   **Debugging:** Address environment issues (CUDA, memory), model loading errors, prompt performance, and SQL query correctness.
+        *   *Status:* ✅ COMPLETED - Added error handling and troubleshooting guidance
+    *   **Evaluation:** Assess overall knowledge base quality via diverse queries. Refine prompts, chunking logic, and retrieval strategy as needed.
+        *   *Status:* ✅ COMPLETED - Added example queries in documentation
+
+**8. Knowledge Base Creation and Deployment:**
+    *   **Create KB Creation Script:**
+        *   *Status:* ✅ COMPLETED - Created `create_knowledge_base.py` script
+        *   *Action:* Script handles database initialization and document processing
+    *   **Create KB Query Script:**
+        *   *Status:* ✅ COMPLETED - Created `query_knowledge_base.py` script
+        *   *Action:* Script facilitates easy querying with the RAG+KG agent
+    *   **Create Detailed Documentation:**
+        *   *Status:* ✅ COMPLETED - Created `KB_README.md`
+        *   *Action:* Added comprehensive instructions, examples, and troubleshooting guidance
+
+**9. Documentation Enhancement:**
+    *   **Create Documentation Structure:**
+        *   *Status:* ✅ COMPLETED - Created organized documentation directory
+        *   *Action:* Created `docs/` subdirectories for architecture, components, guides, and API reference
+    *   **Develop Architecture Diagrams:**
+        *   *Status:* ✅ COMPLETED - Created architecture overview
+        *   *Action:* Added data flow diagrams and component interaction explanations
+    *   **Component Documentation:**
+        *   *Status:* ✅ COMPLETED - Created RAG+KG Query Agent documentation
+        *   *Action:* Added detailed explanation of key components with usage examples
+    *   **Development Tracking Tools:**
+        *   *Status:* ✅ COMPLETED - Created development tracking guide and tools
+        *   *Action:* Added scripts to check development plan status and find relevant documentation
+    *   **Git Hooks for Documentation:**
+        *   *Status:* ✅ COMPLETED - Created Git hooks for documentation checks
+        *   *Action:* Added pre-commit and post-merge hooks to remind about checking the development plan
+
 ## Implementation Plan
 
 **1. Environment Setup:**
@@ -133,7 +171,7 @@ This section outlines the complete data processing and query pipeline:
     *   **Evaluation:** Assess overall knowledge base quality via diverse queries. Refine prompts, chunking logic, and retrieval strategy as needed.
         *   *Status:* ✅ COMPLETED - Added example queries in documentation
 
-**8. Knowledge Base Creation and Deployment:** (Added step)
+**8. Knowledge Base Creation and Deployment:**
     *   **Create KB Creation Script:**
         *   *Status:* ✅ COMPLETED - Created `create_knowledge_base.py` script
         *   *Action:* Script handles database initialization and document processing
@@ -143,6 +181,23 @@ This section outlines the complete data processing and query pipeline:
     *   **Create Detailed Documentation:**
         *   *Status:* ✅ COMPLETED - Created `KB_README.md`
         *   *Action:* Added comprehensive instructions, examples, and troubleshooting guidance
+
+**9. Documentation Enhancement:**
+    *   **Create Documentation Structure:**
+        *   *Status:* ✅ COMPLETED - Created organized documentation directory
+        *   *Action:* Created `docs/` subdirectories for architecture, components, guides, and API reference
+    *   **Develop Architecture Diagrams:**
+        *   *Status:* ✅ COMPLETED - Created architecture overview
+        *   *Action:* Added data flow diagrams and component interaction explanations
+    *   **Component Documentation:**
+        *   *Status:* ✅ COMPLETED - Created RAG+KG Query Agent documentation
+        *   *Action:* Added detailed explanation of key components with usage examples
+    *   **Development Tracking Tools:**
+        *   *Status:* ✅ COMPLETED - Created development tracking guide and tools
+        *   *Action:* Added scripts to check development plan status and find relevant documentation
+    *   **Git Hooks for Documentation:**
+        *   *Status:* ✅ COMPLETED - Created Git hooks for documentation checks
+        *   *Action:* Added pre-commit and post-merge hooks to remind about checking the development plan
 
 ## General Project Tasks
 

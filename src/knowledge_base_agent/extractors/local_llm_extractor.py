@@ -8,8 +8,8 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from pydantic import BaseModel
 
-from .entity_extractor import BaseEntityExtractor
-from ..exceptions import ExtractionError
+from .entity_extractor import EntityExtractor
+from ..exceptions import EntityExtractionError
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ Return ONLY the following JSON structure, no other text. Use null for missing fi
     ]
 }"""
 
-class LocalLlmExtractor(BaseEntityExtractor):
+class LocalLlmExtractor(EntityExtractor):
     """Entity extractor using local LLM models."""
     
     def __init__(
@@ -82,7 +82,8 @@ class LocalLlmExtractor(BaseEntityExtractor):
             max_length: Maximum sequence length for generation
             temperature: Temperature for text generation (lower = more deterministic)
         """
-        super().__init__()
+        # Skip the parent class initialization as we don't need the OpenAI client
+        # super().__init__()
         
         # Set device
         if device is None:
@@ -122,7 +123,7 @@ class LocalLlmExtractor(BaseEntityExtractor):
             
         except Exception as e:
             logger.error(f"Failed to initialize model: {e}", exc_info=True)
-            raise ExtractionError(f"Failed to initialize model: {e}") from e
+            raise EntityExtractionError(f"Failed to initialize model: {e}") from e
             
     def _generate_text(self, prompt: str) -> str:
         """Generate text from the model given a prompt."""
@@ -146,7 +147,7 @@ class LocalLlmExtractor(BaseEntityExtractor):
             
         except Exception as e:
             logger.error(f"Error generating text: {e}", exc_info=True)
-            raise ExtractionError(f"Failed to generate text: {e}") from e
+            raise EntityExtractionError(f"Failed to generate text: {e}") from e
             
     def _parse_json_response(self, response: str) -> Dict[str, Any]:
         """Parse the JSON response from the model."""
@@ -199,7 +200,7 @@ class LocalLlmExtractor(BaseEntityExtractor):
             
         except Exception as e:
             logger.error(f"Error parsing JSON response: {e}", exc_info=True)
-            raise ExtractionError(f"Failed to parse JSON response: {e}") from e
+            raise EntityExtractionError(f"Failed to parse JSON response: {e}") from e
             
     def extract_entities(self, text: str) -> Dict[str, Any]:
         """Extract entities from the given text using the local LLM."""
@@ -217,7 +218,7 @@ class LocalLlmExtractor(BaseEntityExtractor):
             
         except Exception as e:
             logger.error(f"Error extracting entities: {e}", exc_info=True)
-            raise ExtractionError(f"Failed to extract entities: {e}") from e
+            raise EntityExtractionError(f"Failed to extract entities: {e}") from e
             
     def get_metadata(self) -> Dict[str, Any]:
         """Return metadata about the extractor."""

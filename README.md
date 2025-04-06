@@ -94,6 +94,45 @@ Start with our [Table of Contents](docs/00_table_of_contents.md) or dive into sp
 - [**System Integration**](docs/05_system_integration.md): APIs, caching, monitoring
 - [**Advanced Topics**](docs/06_advanced_topics.md): Scaling, security, optimization
 
+## 📚 Documentation Structure
+
+This project includes comprehensive documentation to guide development and usage:
+
+- **[Development Plan](DEVELOPMENT_PLAN_SOTA.md)**: The central reference for all development activities
+- **[Documentation Directory](docs/index.md)**: Structured documentation hub with architecture diagrams, component references, and guides
+- **[KB README](KB_README.md)**: Guide to creating and querying the knowledge base
+
+### Development Plan Tracking
+
+To ensure all development stays aligned with the overall plan:
+
+1. **Before coding**: Always check the development plan
+   ```bash
+   python -m src.knowledge_base_agent.scripts.check_plan
+   ```
+
+2. **Find relevant documentation**:
+   ```bash
+   python -m src.knowledge_base_agent.scripts.check_docs "RAG+KG Query"
+   ```
+
+3. **List available components**:
+   ```bash
+   python -m src.knowledge_base_agent.scripts.check_docs --list
+   ```
+
+4. **Install Git hooks** to automate development plan checking:
+   ```bash
+   python scripts/install_hooks.py
+   ```
+
+### Documentation Directories
+
+- `docs/architecture/`: System design and data flow diagrams
+- `docs/components/`: Detailed documentation for specific modules
+- `docs/guides/`: How-to guides for setup and usage
+- `docs/api-reference/`: Command and function references
+
 ## 🔧 Installation
 
 ### Using pip

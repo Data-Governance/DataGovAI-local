@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional
 
 from ..models import Document, Entity, Relationship
-from .entity_extractor import BaseEntityExtractor
+from .entity_extractor import EntityExtractor
 from .local_llm_extractor import LocalLlmExtractor
 
 class BaseExtractor(ABC):
@@ -65,6 +65,6 @@ __all__ = [
     "ContentExtractor",
     "MetadataExtractor",
     "KnowledgeExtractor",
-    'BaseEntityExtractor',
+    'EntityExtractor',
     'LocalLlmExtractor'
 ] 
