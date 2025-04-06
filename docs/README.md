@@ -1,101 +1,86 @@
-# Knowledge Base Agent Documentation
+# 📚 DataGovAI Documentation
 
-This directory contains comprehensive documentation for the Knowledge Base Agent project.
+Welcome to the comprehensive documentation for DataGovAI, the Utah Office of Data Privacy's GRS Knowledge Base Agent.
 
-## 📚 How to Use This Documentation
+## 📑 Documentation Structure
 
-Start by reading the [index.md](index.md) file, which provides an overview of all available documentation resources.
+| Category | Description | Key Documents |
+|----------|-------------|---------------|
+| [Getting Started](./guides/getting_started.md) | Quick setup and first steps | • Installation<br>• Basic Usage<br>• Configuration |
+| [Architecture](./architecture/README.md) | System design and components | • System Overview<br>• Data Flow<br>• Components |
+| [Knowledge Base](./knowledge_base/README.md) | GRS data and processing | • Data Model<br>• Document Processing<br>• Query System |
+| [API Reference](./api/README.md) | API documentation | • REST API<br>• Python API<br>• CLI Reference |
+| [Development](./development/README.md) | Developer documentation | • Setup Guide<br>• Testing<br>• Best Practices |
+| [Deployment](./deployment/README.md) | Deployment guides | • Production Setup<br>• Security<br>• Scaling |
+| [Maintenance](./maintenance/README.md) | System maintenance | • Monitoring<br>• Backup<br>• Updates |
+| [Examples](./examples/README.md) | Usage examples | • Basic Queries<br>• Advanced Features<br>• Integration |
 
-The documentation is organized into different sections:
+## 🗂️ Directory Structure
 
-- **Architecture**: Design of the system components
-- **Components**: Details of specific modules
-- **Guides**: How-to instructions
-- **API Reference**: Technical reference
-
-## 🔑 Key Documents
-
-| Document | Description |
-|----------|-------------|
-| [Architecture Overview](architecture/overview.md) | High-level system design and data flow |
-| [Getting Started](guides/getting_started.md) | Setting up and using the system |
-| [Development Tracking](guides/development_tracking.md) | How to track development progress |
-| [RAG+KG Query Agent](components/query_agent.md) | Details of the hybrid query system |
-
-## 🚀 Development Plan
-
-The [DEVELOPMENT_PLAN_SOTA.md](../DEVELOPMENT_PLAN_SOTA.md) file in the project root is the central reference for all development activities. Always check it before making code changes.
-
-To get a quick summary of the development status, run:
-
-```bash
-python scripts/check_plan.py
 ```
+docs/
+├── api/                    # API Documentation
+│   ├── rest_api.md        # REST API reference
+│   ├── python_api.md      # Python API guide
+│   └── cli.md             # Command-line interface guide
+│
+├── architecture/          # System Architecture
+│   ├── overview.md       # System overview
+│   ├── components.md     # Component details
+│   └── data_flow.md      # Data flow diagrams
+│
+├── guides/               # User Guides
+│   ├── getting_started.md   # Quick start guide
+│   ├── installation.md      # Detailed installation
+│   └── configuration.md     # Configuration guide
+│
+├── development/          # Developer Documentation
+│   ├── setup.md         # Development setup
+│   ├── testing.md       # Testing guide
+│   └── contributing.md   # Contribution guidelines
+│
+├── deployment/          # Deployment Documentation
+│   ├── production.md    # Production deployment
+│   ├── security.md      # Security guidelines
+│   └── scaling.md       # Scaling strategies
+│
+├── knowledge_base/      # Knowledge Base Documentation
+│   ├── data_model.md    # Data structure
+│   ├── processing.md    # Document processing
+│   └── querying.md      # Query system
+│
+├── maintenance/         # System Maintenance
+│   ├── monitoring.md    # System monitoring
+│   ├── backup.md        # Backup procedures
+│   └── updates.md       # Update procedures
+│
+└── examples/           # Example Documentation
+    ├── basic.md        # Basic usage examples
+    ├── advanced.md     # Advanced features
+    └── integration.md  # Integration examples
 
-## 📝 Contributing to Documentation
+## 🎯 Quick Links
 
-1. Follow the existing structure and formatting
-2. Update documentation whenever you make code changes
-3. Use clear, concise language
-4. Include code examples where appropriate
-5. Reference specific files or classes when describing functionality
+| For Users | For Developers | For Administrators |
+|-----------|---------------|-------------------|
+| [Quick Start](./guides/getting_started.md) | [Development Setup](./development/setup.md) | [Production Deployment](./deployment/production.md) |
+| [Basic Usage](./examples/basic.md) | [Architecture Overview](./architecture/overview.md) | [Security Guide](./deployment/security.md) |
+| [Configuration](./guides/configuration.md) | [Contributing](./development/contributing.md) | [Monitoring](./maintenance/monitoring.md) |
 
-## 🔄 Document Generation
+## 📝 Documentation Updates
 
-Some documentation files might be generated automatically from code comments. 
-Please do not edit these files directly, but update the source code comments instead.
+| Date | Version | Changes |
+|------|---------|---------|
+| 2025-04-06 | 1.0.0 | Initial documentation release |
 
-## 📊 Documentation Status
+## 📞 Support
 
-The current documentation focuses on:
+For technical support or questions about this documentation:
+- Email: [privacy@utah.gov](mailto:privacy@utah.gov)
+- Internal Support Portal: [https://support.privacy.utah.gov](https://support.privacy.utah.gov)
 
-- Core architecture and design
-- RAG+KG query system
-- Development process and tracking
-- Basic usage guides
+## 🔒 License
 
-Future documentation improvements are planned for:
+Copyright © 2025 Utah Office of Data Privacy (ODP). All Rights Reserved.
 
-- Storage schema details
-- Performance optimization techniques
-- Advanced configuration options
-- API reference
-
-## 📋 Documentation Checklist
-
-When implementing a feature, ensure you update the relevant documentation:
-
-1. Update task status in DEVELOPMENT_PLAN_SOTA.md
-2. Update component documentation if you modify a specific component
-3. Update guides if the usage pattern changes
-4. Review the architecture documentation if system design changes 
-
-## 🚀 Documentation Improvements
-
-The documentation in this project has been significantly improved with:
-
-1. **Structured Directory Organization**:
-   - `architecture/`: System design and architecture diagrams
-   - `components/`: Detailed documentation for specific modules
-   - `guides/`: How-to guides for setup, usage, and development
-   - `api-reference/`: Command and function references
-
-2. **Development Plan Integration**:
-   - Clear links between documentation and development plan
-   - Scripts to check development status
-   - Git hooks to remind about plan updates
-
-3. **Detailed Component Documentation**:
-   - RAG+KG Query Agent documentation with flow diagrams
-   - Architecture overview with comprehensive data flow explanation
-   - Getting started guide with step-by-step instructions
-
-4. **Process Guidance**:
-   - Development tracking guide with status indicators
-   - Documentation README with contribution guidelines
-   - Git hooks to automate documentation checks
-
-5. **Helper Scripts**:
-   - `check_plan.py`: Analyzes development plan status
-   - `check_docs.py`: Finds relevant documentation for components
-   - `install_hooks.py`: Sets up Git hooks for development workflow 
+This documentation is proprietary and confidential. Unauthorized copying, modification, distribution, or use is strictly prohibited. 

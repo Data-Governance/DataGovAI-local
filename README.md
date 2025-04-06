@@ -91,16 +91,17 @@ python app/app.py
 
 ## 📁 Project Structure
 
-| Directory | Purpose |
-|-----------|---------|
-| `app/` | Main application code |
-| `├── static/` | CSS, JS, and assets |
-| `├── templates/` | HTML templates |
-| `└── app.py` | Flask application |
-| `data/` | Document storage |
-| `docs/` | Documentation |
-| `scripts/` | Utility scripts |
-| `tests/` | Test suite |
+```
+DataGovAI/
+├── app/                # Main application code
+│   ├── static/        # CSS, JS, and assets
+│   ├── templates/     # HTML templates
+│   └── app.py        # Flask application
+├── data/              # Document storage
+├── docs/              # Documentation
+├── scripts/           # Utility scripts
+└── tests/             # Test suite
+```
 
 ## 📚 Documentation
 
