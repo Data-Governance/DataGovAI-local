@@ -603,8 +603,7 @@ with st.sidebar:
         st.markdown("- **Temporary:** Records with set disposal date")
         st.markdown("- **Vital:** Essential for operations")
     
-    st.markdown("---") # Add a separator
-    st.markdown("[📚 View Official GRS Documentation](https://archives.utah.gov/rim/retention-schedules.html)")
+    
 
 # Main Content Area
 st.title("DataGovAI - Utah GRS Knowledge Base Agent") # Updated Title
@@ -625,7 +624,7 @@ st.markdown("""
     <p style="margin-bottom: 10px;">This AI assistant can answer both general questions and questions about Utah's <strong>General Retention Schedules (GRS)</strong>.</p>
     <ul style="margin-bottom: 0;">
         <li><strong>General questions:</strong> Answered directly using GPT-4o</li>
-        <li><strong>GRS questions:</strong> Answered using evidence from official GRS documentation</li>
+        <li><strong>GRS questions:</strong> Answered using evidence from <a href="https://archives.utah.gov/rim/retention-schedules.html">Utah Official GRS Documentation</a></li>
     </ul>
 </div>
 """, unsafe_allow_html=True)
