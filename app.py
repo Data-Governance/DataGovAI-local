@@ -5,7 +5,6 @@ import logging
 from typing import List, Dict, Tuple
 # Import torch early for CUDA checks
 import torch 
-from PIL import Image
 
 # Disable Streamlit's file watcher - This helps avoid the torch.classes issue
 os.environ['STREAMLIT_FILE_WATCHER_TYPE'] = 'none'
@@ -485,20 +484,16 @@ You have access to the previous conversation and context. Reference this informa
 
 # --- Streamlit UI ---
 
-# Set page config
+# Set page configuration with logo
 st.set_page_config(
     page_title="DataGovAI - Utah GRS Knowledge Base Agent",
-    page_icon="./logo",
-    layout="wide"
+    page_icon="./logo.png",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Display logo
-logo = Image.open("./logo")
-col1, col2, col3 = st.columns([1,2,1])
-with col2:
-    st.image(logo, width=200)
-
-st.title("DataGovAI - Utah GRS Knowledge Base Agent")
+# Display logo in the sidebar
+st.sidebar.image("./logo.png", width=150)
 
 # Custom CSS for better styling
 st.markdown("""
@@ -649,7 +644,7 @@ with st.sidebar:
     st.markdown("[📚 View Official GRS Documentation](https://archives.utah.gov/rim/retention-schedules.html)")
 
 # Main Content Area
-st.title("📚 Utah GRS Knowledge Base Agent")
+st.title("DataGovAI - Utah GRS Knowledge Base Agent")
 
 # Show session status if a conversation is in progress
 if len(st.session_state.conversation_history) > 0:
