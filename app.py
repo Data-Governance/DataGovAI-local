@@ -44,8 +44,11 @@ from pgvector.psycopg2 import register_vector
 if "session_id" not in st.session_state:
     import uuid
     st.session_state.session_id = str(uuid.uuid4())
-if "query" not in st.session_state:
-    st.session_state.query = ""
+# Use a dedicated key for the text input widget's state
+if "input_key" not in st.session_state:
+    st.session_state.input_key = ""
+if "query_to_process" not in st.session_state: # Holds query only when submit is clicked
+    st.session_state.query_to_process = None
 if "conversation_history" not in st.session_state:
     st.session_state.conversation_history = []
 if "last_context_and_sources" not in st.session_state:
@@ -449,13 +452,14 @@ def generate_follow_up_response(_openai_client, model_name: str, query: str, con
     """Generate a follow-up response using only conversation history and last context."""
     logger.info("Generating follow-up response using OpenAI...")
     
-    system_prompt = """You are a helpful assistant answering questions about Utah's General Retention Schedules (GRS).
-Your responses should be:
-1. Evidence-based: Only use information explicitly stated in the provided context and conversation history
-2. Well-structured: Use clear paragraphs and bullet points when appropriate
-3. Source-aware: Reference specific GRS documents when appropriate
-4. Conversational: Maintain a helpful and conversational tone while staying factual
-5. Clear about limitations: If you can't answer based on provided information, say so clearly
+    # Enhanced system prompt for better follow-ups, especially simplification
+    system_prompt = """You are a helpful assistant answering follow-up questions based on previous context and conversation about Utah's General Retention Schedules (GRS).
+Your responses should:
+1. Directly address the follow-up query (e.g., clarification, simplification).
+2. Use the provided conversation history and the context from the *initial* query to maintain consistency.
+3. If asked to simplify or explain differently, significantly rephrase the information using clearer language, analogies, or breaking down complex points. Avoid just minor re-wording.
+4. Stay factual and source-aware if referring back to GRS specifics.
+5. If you cannot answer based on the available information, state that clearly.
 
 You have access to the previous conversation and context. Reference this information to maintain continuity."""
 
@@ -463,7 +467,7 @@ You have access to the previous conversation and context. Reference this informa
     messages = [{"role": "system", "content": system_prompt}]
     
     # Add reminder of the context
-    context_reminder = f"Remember that your answers must be based on this context from GRS documents:\n\n{last_context[:1000]}..."
+    context_reminder = f"Remember that the initial answer was based on this context from GRS documents:\n\n{last_context[:1000]}..."
     messages.append({"role": "system", "content": context_reminder})
     
     # Add truncated conversation history (keep last 10 messages maximum)
@@ -477,7 +481,7 @@ You have access to the previous conversation and context. Reference this informa
         response = _openai_client.chat.completions.create(
             model=model_name,
             messages=messages,
-            temperature=0.3
+            temperature=0.4 # Slightly increased temperature for potentially more creative simplification
         )
         answer = response.choices[0].message.content
         logger.info("Follow-up response generated successfully.")
@@ -490,11 +494,14 @@ You have access to the previous conversation and context. Reference this informa
 # --- Streamlit UI ---
 
 st.set_page_config(
-    page_title="Utah GRS Knowledge Base Agent",
-    page_icon="📚",
+    page_title="DataGovAI - Utah GRS Knowledge Base Agent", # Updated title
+    page_icon="./logo.png", # Use logo as icon
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Display logo in the sidebar
+st.sidebar.image("./logo.png", width=150) # Ensure logo path is correct
 
 # Custom CSS for better styling
 st.markdown("""
@@ -548,82 +555,61 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Left Sidebar - Sample Questions and Session Management
+# --- Callback Function ---
+# Function to update the text input's state without submitting
+def set_input_text(text):
+    st.session_state.input_key = text
+
+# Left Sidebar - Sample Questions
 with st.sidebar:
-    # Section for session management
-    st.markdown("### 💾 Session Management")
-    
-    # Option to save current session - use len() check which is safer than a direct boolean check
-    if len(st.session_state.conversation_history) > 0:
-        import json
-        conversation_json = json.dumps({
-            "session_id": st.session_state.session_id,
-            "conversation_history": st.session_state.conversation_history,
-            "last_context_and_sources": st.session_state.last_context_and_sources,
-            "conversation_mode": st.session_state.conversation_mode
-        }, indent=2)
-        
-        st.download_button(
-            label="💾 Save Current Session",
-            data=conversation_json,
-            file_name=f"grs_session_{st.session_state.session_id[:8]}.json",
-            mime="application/json",
-            help="Save your current conversation to continue later"
-        )
-    
-    # Option to upload a saved session
-    uploaded_file = st.file_uploader("📤 Upload Saved Session", type="json", 
-                               help="Upload a previously saved conversation to continue where you left off")
-    
-    if uploaded_file is not None:
-        try:
-            uploaded_data = json.load(uploaded_file)
-            # Validate the uploaded data has the required fields
-            if all(key in uploaded_data for key in ["conversation_history", "last_context_and_sources", "conversation_mode"]):
-                # Update session state with uploaded data
-                st.session_state.conversation_history = uploaded_data["conversation_history"]
-                st.session_state.last_context_and_sources = uploaded_data["last_context_and_sources"]
-                st.session_state.conversation_mode = uploaded_data["conversation_mode"]
-                st.success("✅ Session loaded successfully!")
-                # Rerun to reflect changes
-                st.rerun()
-            else:
-                st.error("❌ Invalid session file format. Please upload a valid session file.")
-        except Exception as e:
-            st.error(f"❌ Error loading session: {e}")
-    
-    st.markdown("---")
     st.markdown("### 📝 Sample Questions")
     
-    # Organize questions by category in expanders
+    # Organize questions by category in expanders (Updated with more questions)
     categories = {
         "Personnel & HR": {
             "Personnel Files": "What is the retention period for employee personnel files?",
             "Training Records": "How long should we keep employee training records?",
-            "Job Applications": "What is the retention schedule for job applications?"
+            "Job Applications": "What is the retention schedule for job applications?",
+            "Volunteer Records": "Retention for volunteer records?",
+            "Disciplinary Actions": "How are disciplinary action files handled?",
+            "I-9 Forms": "What's the schedule for I-9 forms?"
         },
         "Administrative": {
             "Correspondence": "How long should we keep general correspondence?",
-            "Meeting Records": "What is the disposition for audio/video recordings of meetings?",
-            "Email Management": "What are the requirements for email retention?"
+            "Meeting Minutes": "Disposition rules for meeting minutes?",
+            "Meeting Recordings": "What is the disposition for audio/video recordings of meetings?",
+            "Email Management": "What are the requirements for email retention?",
+            "Policy Drafts": "How long must policy drafts be kept?",
+            "Internal Memos": "Schedule for internal memos?"
         },
         "Financial & Legal": {
             "Financial Records": "What schedule covers accounts payable records?",
-            "Legal Documents": "What is the retention period for contracts and agreements?",
-            "Audit Records": "How long should we keep audit reports?"
+            "Contracts": "What is the retention period for contracts and agreements?",
+            "Audit Records": "How long should we keep audit reports?",
+            "Grant Records": "Retention schedule for grant records?",
+            "Litigation Files": "How long to keep litigation files?",
+            "Procurement Records": "Disposition of procurement records?"
         },
         "Facilities & Equipment": {
             "Facility Records": "How long should we keep building maintenance records?",
             "Equipment Logs": "What is the retention period for equipment maintenance logs?",
-            "Property Files": "How long should property acquisition records be kept?"
+            "Property Files": "How long should property acquisition records be kept?",
+            "Vehicle Logs": "Retention for vehicle maintenance logs?",
+            "Compliance Reports": "Schedule for environmental compliance reports?",
+            "Safety Inspections": "How long are safety inspection records kept?"
         }
     }
     
     for category, questions in categories.items():
         with st.expander(f"📁 {category}"):
             for title, question in questions.items():
-                if st.button(f"🔍 {title}", key=f"btn_{title}"):
-                    st.session_state.query = question
+                # Use the callback to update the input field's state
+                st.button(
+                    f"🔍 {title}",
+                    key=f"btn_{title}",
+                    on_click=set_input_text,
+                    args=(question,) # Pass the question text to the callback
+                )
     
     # GRS Quick Reference section in the same sidebar
     st.markdown("---")
@@ -642,10 +628,59 @@ with st.sidebar:
         st.markdown("- **Temporary:** Records with set disposal date")
         st.markdown("- **Vital:** Essential for operations")
     
+    # -- Moved Upload/Save Section Here --
+        # Section for session management
+    st.markdown("### 💾 Session Management")
+    # -- Save button moved down --
+    st.markdown("---") # Add a separator
+    st.markdown("### 📤 Upload/Save Session") # Updated title
+
+    # Option to save current session
+    if len(st.session_state.conversation_history) > 0:
+        import json
+        conversation_json = json.dumps({
+            "session_id": st.session_state.session_id,
+            "conversation_history": st.session_state.conversation_history,
+            "last_context_and_sources": st.session_state.last_context_and_sources,
+            "conversation_mode": st.session_state.conversation_mode
+        }, indent=2)
+        
+        st.download_button(
+            label="💾 Save Current Session",
+            data=conversation_json,
+            file_name=f"grs_session_{st.session_state.session_id[:8]}.json",
+            mime="application/json",
+            help="Save your current conversation to continue later"
+        )
+        st.markdown("<br>", unsafe_allow_html=True) # Add some space
+
+    # Option to upload a saved session
+    uploaded_file = st.file_uploader("Load a saved session", type="json", 
+                               label_visibility="collapsed", # Make label less prominent
+                               help="Upload a previously saved conversation to continue where you left off")
+    
+    if uploaded_file is not None:
+        try:
+            uploaded_data = json.load(uploaded_file)
+            # Validate the uploaded data has the required fields
+            if all(key in uploaded_data for key in ["conversation_history", "last_context_and_sources", "conversation_mode"]):
+                # Update session state with uploaded data
+                st.session_state.conversation_history = uploaded_data["conversation_history"]
+                st.session_state.last_context_and_sources = uploaded_data["last_context_and_sources"]
+                st.session_state.conversation_mode = uploaded_data["conversation_mode"]
+                st.success("✅ Session loaded successfully!")
+                # Rerun to reflect changes
+                st.rerun()
+            else:
+                st.error("❌ Invalid session file format. Please upload a valid session file.")
+        except Exception as e:
+            st.error(f"❌ Error loading session: {e}")
+
+    st.markdown("---") # Add another separator
     st.markdown("[📚 View Official GRS Documentation](https://archives.utah.gov/rim/retention-schedules.html)")
 
 # Main Content Area
-st.title("📚 Utah GRS Knowledge Base Agent")
+st.title("DataGovAI - Utah GRS Knowledge Base Agent") # Updated Title
 
 # Show session status if a conversation is in progress
 if len(st.session_state.conversation_history) > 0:
@@ -728,7 +763,7 @@ if len(st.session_state.conversation_history) > 0:
                 mime="application/json"
             )
 
-# Query input with improved UI based on conversation state
+# Query input form
 if st.session_state.conversation_mode:
     query_label = "💬 Continue the conversation:"
     submit_button_label = "Send Message"
@@ -736,14 +771,27 @@ else:
     query_label = "❓ Ask any question. For GRS information, include terms like 'retention period', 'schedule', etc.:"
     submit_button_label = "Ask Question"
 
-# Create a form for the query input to handle submission better
+# Use st.form for explicit submission
 with st.form(key="query_form", clear_on_submit=True):
-    query = st.text_input(query_label, key="query_input", value=st.session_state.get("query", ""))
+    # Bind text_input to the session state key
+    query_typed_in = st.text_input(query_label, key="input_key")
     submit_button = st.form_submit_button(label=submit_button_label)
-    
-    # Only process if there's a query and the submit button is clicked
-    if submit_button and query:
-        st.session_state.query = query
+
+    # Process only when the form's submit button is clicked
+    if submit_button and st.session_state.input_key:
+        # Set the query to be processed in the next rerun using the state variable
+        st.session_state.query_to_process = st.session_state.input_key
+
+# --- Add "Explain Last Answer" Button --- 
+# Only show if there's history and the last message was from the assistant
+if st.session_state.conversation_history and st.session_state.conversation_history[-1]["role"] == "assistant":
+    if st.button("💡 Explain Last Answer in Simpler Terms", key="explain_button"):
+        # Set the specific follow-up query
+        st.session_state.query_to_process = "Explain the previous answer in simpler terms."
+        # Ensure we are in conversation mode for this type of follow-up
+        st.session_state.conversation_mode = True 
+        # Trigger a rerun to process the explanation query
+        st.rerun() 
 
 # Load models and config once
 config, embedding_model, openai_client = load_config_and_clients()
@@ -804,262 +852,151 @@ For questions about GRS, direct the user to ask specifically about retention sch
 
 # Main app logic wrapped in try-except for robust error handling
 try:
-    # Get the query from session state (set by the form)
-    query = st.session_state.get("query", "")
-    
-    # Check if this query is new (not the same as the last processed query)
-    if query and query != st.session_state.last_processed_query:
-        # Save the current query as the last processed query to prevent duplicates
-        st.session_state.last_processed_query = query
-        
-        # Save the user query to conversation history
+    # Check if a query was submitted via the form in the *previous* run
+    if st.session_state.get("query_to_process"):
+        query = st.session_state.query_to_process
+        st.session_state.query_to_process = None # Clear the flag immediately
+
+        logger.info(f"Processing submitted query: {query}")
+
+        # Add user query to history *before* processing
         st.session_state.conversation_history.append({"role": "user", "content": query})
-        
-        # Determine if we're in conversation mode or RAG search mode
+
+        # --- Determine Query Type and Process ---
+        # **MODIFIED LOGIC**: Prioritize conversation_mode for follow-ups
         if st.session_state.conversation_mode and st.session_state.last_context_and_sources["context"]:
-            # Follow-up conversation mode - use last context and conversation history
-            with st.spinner("🤔 Generating response..."):
+             # --- Follow-up Query in Conversation Mode (GRS or General) ---
+            logger.info("Handling follow-up query in conversation mode.")
+            with st.spinner("Generating follow-up response..."): # <-- ADDED SPINNER
+                last_context = st.session_state.last_context_and_sources["context"]
                 answer = generate_follow_up_response(
-                    openai_client,
-                    config['openai_model'],
-                    query,
-                    st.session_state.conversation_history[:-1],  # Exclude the query we just added
-                    st.session_state.last_context_and_sources["context"]
+                    openai_client, config["openai_model"], query, st.session_state.conversation_history[:-1], last_context
                 )
-                
-            # Save to conversation history
-            st.session_state.conversation_history.append({"role": "assistant", "content": answer})
-            
-            # Display the answer
-            st.markdown("### 📝 Answer")
-            st.markdown(answer)
-            
-            # Display Sources from the previous RAG query
-            with st.expander("📚 Source Documents (from initial search)"):
-                st.markdown("This conversation is based on these GRS documents:")
-                for source in st.session_state.last_context_and_sources["sources"]:
-                    doc_title = source['document_title']
-                    doc_id = ""
-                    
-                    # Try to extract GRS document ID from title
-                    if "GRS-" in doc_title or "RS-" in doc_title:
-                        doc_id = doc_title
-                    else:
-                        # Extract any document IDs from the title
-                        import re
-                        id_match = re.search(r'(GRS-\d+|RS-\d+)', doc_title)
-                        if id_match:
-                            doc_id = id_match.group(0)
-                        else:
-                            doc_id = doc_title
-                    
-                    st.markdown(f"""
-                    <div class='source-box'>
-                        📄 <b>{doc_title}</b>
-                        <br>
-                        📋 Document ID: {doc_id}
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            # After generating the response, clear the query and reset processing state
-            st.session_state.query = ""
-            st.session_state.last_processed_query = ""
-            # Force a rerun to show the updated conversation and clear the input
-            st.rerun()
-        
-        else:
-            # Check if this is a GRS-related question or a general question
-            if is_grs_related(query):
-                # GRS-related question - use RAG search
-                st.markdown("---")
-                # Clear conversation mode flag when doing a new search
-                st.session_state.conversation_mode = False
-                
-                # Establish DB connection for this query
-                conn = get_db_connection(config['postgres_connection'])
-                
-                if conn:
-                    try:
-                        # 1. Generate Query Embedding
-                        with st.spinner("🔍 Analyzing your question..."):
-                            query_embedding = generate_query_embedding(embedding_model, query)
-                        
-                        # 2. Find Relevant Chunks
-                        with st.spinner("📚 Searching through GRS documents..."):
-                            relevant_chunk_data = find_relevant_chunks(conn, query_embedding, top_k=5)
-                        
-                        if not relevant_chunk_data:
-                            st.warning("⚠️ Could not find relevant documents for the query in the knowledge base.")
-                            # Remove the user query we added since we couldn't find an answer
-                            if len(st.session_state.conversation_history) > 0:
-                                st.session_state.conversation_history.pop()
-                            # Clear the query and reset processing state
-                            st.session_state.query = ""
-                            st.session_state.last_processed_query = ""
-                            st.rerun()
-                        else:
-                            relevant_chunk_ids = [item[0] for item in relevant_chunk_data]
-                            logger.info(f"Relevant chunk IDs (with distances): {relevant_chunk_data}")
-                            
-                            # 3. Retrieve Chunk Text and Metadata
-                            with st.spinner("📄 Gathering context..."):
-                                chunk_texts_map = get_chunk_text(conn, relevant_chunk_ids)
-                            
-                            # Prepare context and sources
-                            context_parts = []
-                            sources = []
-                            for chunk_id, distance, doc_title in relevant_chunk_data:
-                                if chunk_id in chunk_texts_map:
-                                    chunk_info = chunk_texts_map[chunk_id]
-                                    context_parts.append(chunk_info['content'])
-                                    sources.append({
-                                        'document_title': chunk_info['document_title'],
-                                        'source_url': chunk_info['source_url']
-                                    })
-                                else:
-                                    logger.warning(f"Could not retrieve text for relevant chunk ID: {chunk_id}")
-                            
-                            context_string = "\n\n---\n\n".join(context_parts)
 
-                            # 4. Generate Response
-                            if not context_string:
-                                st.error("❌ Failed to retrieve context for the relevant chunks.")
-                                # Remove the user query we added since we couldn't find an answer
-                                if len(st.session_state.conversation_history) > 0:
-                                    st.session_state.conversation_history.pop()
-                                # Clear the query and reset processing state
-                                st.session_state.query = ""
-                                st.session_state.last_processed_query = ""
-                                st.rerun()
-                            else:
-                                with st.spinner("🤔 Generating comprehensive answer..."):
-                                    answer = generate_response(
-                                        openai_client, 
-                                        config['openai_model'], 
-                                        query, 
-                                        context_string, 
-                                        sources, 
-                                        st.session_state.conversation_history[:-1]  # Exclude the query we just added
-                                    )
-                                
-                                # Save context and sources for future follow-ups
-                                st.session_state.last_context_and_sources = {
-                                    "context": context_string,
-                                    "sources": sources
-                                }
-                                
-                                # Save to conversation history
-                                st.session_state.conversation_history.append({"role": "assistant", "content": answer})
-                                
-                                # 5. Display Result
-                                st.markdown("### 📝 Answer")
-                                st.markdown(answer)
-                                
-                                # Display Sources
-                                with st.expander("📚 Source Documents"):
-                                    st.markdown("This answer was generated based on the following GRS documents:")
-                                    for source in sources:
-                                        doc_title = source['document_title']
-                                        doc_id = ""
-                                        
-                                        # Try to extract GRS document ID from title or content if available
-                                        if "GRS-" in doc_title or "RS-" in doc_title:
-                                            doc_id = doc_title
-                                        else:
-                                            # Extract any document IDs from the title
-                                            import re
-                                            id_match = re.search(r'(GRS-\d+|RS-\d+)', doc_title)
-                                            if id_match:
-                                                doc_id = id_match.group(0)
-                                            else:
-                                                doc_id = doc_title
-                                        
-                                        st.markdown(f"""
-                                        <div class='source-box'>
-                                            📄 <b>{doc_title}</b>
-                                            <br>
-                                            📋 Document ID: {doc_id}
-                                            <br>
-                                            <small>Note: Direct document links are not available in this demo. In a production environment, 
-                                            these would link to the official Utah Archives GRS documents.</small>
-                                        </div>
-                                        """, unsafe_allow_html=True)
-                                
-                                # Display Raw Context (for transparency)
-                                with st.expander("🔍 View Retrieved Context"):
-                                    st.markdown("The AI used the following excerpts to generate the answer:")
-                                    for chunk_id, distance, _ in relevant_chunk_data:
-                                        if chunk_id in chunk_texts_map:
-                                            chunk_info = chunk_texts_map[chunk_id]
-                                            # Try to extract document ID
-                                            content = chunk_info['content']
-                                            doc_title = chunk_info['document_title']
-                                            
-                                            # Look for GRS codes in the content
-                                            import re
-                                            grs_match = re.search(r'(GRS-\d+|RS-\d+)', content + " " + doc_title)
-                                            grs_id = grs_match.group(0) if grs_match else "Unknown GRS"
-                                            
-                                            # Format for display
-                                            st.markdown(f"""
-                                            <div class='evidence-box'>
-                                                <div style='background-color: #f5f5f5; padding: 5px; margin-bottom: 5px; border-radius: 3px;'>
-                                                    <strong>Source:</strong> {doc_title} <span style='color: #666;'>({grs_id})</span><br>
-                                                    <span style='color: #888; font-size: 0.8em;'>Relevance score: {1.0 - float(distance):.2f}</span>
-                                                </div>
-                                                {content}
-                                            </div>
-                                            """, unsafe_allow_html=True)
-                                
-                                # Enable conversation mode after first RAG query
-                                st.session_state.conversation_mode = True
-                                # Clear the query and reset processing state
-                                st.session_state.query = ""
-                                st.session_state.last_processed_query = ""
-                                st.rerun()
-                                        
-                    except Exception as e:
-                        st.error(f"❌ An error occurred during the query process: {e}")
-                        logger.error(f"Error during Streamlit query execution: {e}", exc_info=True)
-                        # Remove the user query we added since we couldn't find an answer
-                        if len(st.session_state.conversation_history) > 0:
-                            st.session_state.conversation_history.pop()
-                        # Clear the query and reset processing state
-                        st.session_state.query = ""
-                        st.session_state.last_processed_query = ""
-                        st.rerun()
-                    finally:
-                        if conn:
-                            conn.close()
-                            logger.info("Database connection closed for query.")
-            else:
-                # General question - use direct GPT-4o response without RAG
-                with st.spinner("🤔 Generating response..."):
-                    answer = generate_direct_response(
-                        openai_client,
-                        config['openai_model'],
-                        query,
-                        st.session_state.conversation_history[:-1]  # Exclude the query we just added
+        elif is_grs_related(query):
+             # --- RAG Process for New GRS Query ---
+            logger.info("GRS-related query detected. Performing RAG retrieval.")
+            # Ensure conversation mode is OFF for a new RAG search if it wasn't explicitly turned on
+            st.session_state.conversation_mode = False 
+            conn = None # Initialize conn
+            try:
+                # Get DB connection inside the processing block
+                conn = get_db_connection(config["postgres_connection"])
+                
+                with st.spinner("Analyzing question and searching GRS documents..."): # <-- ADDED SPINNER
+                    query_embedding = generate_query_embedding(embedding_model, query)
+                    relevant_chunks_info = find_relevant_chunks(conn, query_embedding, top_k=5)
+                    relevant_chunk_ids = [chunk_id for chunk_id, _, _ in relevant_chunks_info]
+
+                    logger.info(f"Relevant chunk IDs (with distances): {[(cid, dist, doc) for cid, dist, doc in relevant_chunks_info]}")
+
+                    chunk_details = get_chunk_text(conn, relevant_chunk_ids)
+
+                # Format context and sources
+                context_parts = []
+                sources = []
+                processed_chunk_ids = set() # Ensure unique sources
+
+                # Order context by relevance (distance)
+                for chunk_id, distance, doc_title_or_id in relevant_chunks_info:
+                     if chunk_id in chunk_details and chunk_id not in processed_chunk_ids:
+                         detail = chunk_details[chunk_id]
+                         context_parts.append(f"Source: {detail.get('document_title', 'Unknown')}\nContent: {detail['content']}")
+                         sources.append({
+                             "chunk_id": chunk_id,
+                             "distance": distance,
+                             "document_title": detail.get('document_title', 'Unknown'),
+                             "source_url": detail.get('source_url', '#'),
+                             "content_preview": detail['content'][:150] + "..." # Add preview
+                         })
+                         processed_chunk_ids.add(chunk_id)
+
+                context = "\n\n---\n\n".join(context_parts)
+                st.session_state.last_context_and_sources = {"context": context, "sources": sources} # Store for potential follow-up
+
+                # Generate response using RAG context
+                with st.spinner("Generating GRS response..."): # <-- ADDED SPINNER
+                    answer = generate_response(
+                        openai_client, config["openai_model"], query, context, sources, st.session_state.conversation_history[:-1] # Pass history *before* current query
                     )
+                # Automatically enable conversation mode after a successful RAG query
+                st.session_state.conversation_mode = True 
                 
-                # Save to conversation history
-                st.session_state.conversation_history.append({"role": "assistant", "content": answer})
-                
-                # Display the answer
-                st.markdown("### 📝 Answer")
-                st.markdown(answer)
-                
-                # Note about general question
-                st.info("This was a general question answered directly by GPT-4o. For questions about Utah's General Retention Schedules (GRS), the system will search the knowledge base for relevant information.")
+            except Exception as e:
+                logger.error(f"Error during GRS query processing: {e}", exc_info=True)
+                st.error(f"An error occurred while processing your GRS query: {e}")
+                answer = "Sorry, I encountered an error trying to answer your GRS question."
+                # Ensure context is cleared on error so next query isn't treated as follow-up
+                st.session_state.last_context_and_sources = {"context": "", "sources": []} 
+                st.session_state.conversation_mode = False
+            finally:
+                 if conn:
+                     conn.close()
+                     logger.info("Database connection closed for query.")
 
-                # Clear the query and reset processing state
-                st.session_state.query = ""
-                st.session_state.last_processed_query = ""
-                st.rerun()
-        
-        # Clear the query input after processing
-        st.session_state.query = ""
-        
+        else:
+            # --- General Question (Non-GRS, New Search) ---
+            logger.info("Handling general non-GRS query.")
+            # Ensure conversation mode is OFF
+            st.session_state.conversation_mode = False 
+            st.session_state.last_context_and_sources = {"context": "", "sources": []} # Clear context
+            try:
+                # Simple call to OpenAI for general questions
+                with st.spinner("Generating general response..."): # <-- ADDED SPINNER
+                    answer = generate_direct_response(
+                         openai_client, 
+                         config["openai_model"], 
+                         query, 
+                         st.session_state.conversation_history[:-1] # Pass previous history
+                    )
+            except Exception as e:
+                logger.error(f"Error calling OpenAI for general query: {e}")
+                st.error(f"An error occurred while processing your general query: {e}")
+                answer = "Sorry, I encountered an error trying to answer your general question."
+
+        # Add assistant response to history
+        st.session_state.conversation_history.append({"role": "assistant", "content": answer})
+        st.session_state.last_processed_query = query # Store the actually processed query
+
+        # Rerun Streamlit to update the UI with the new messages and results
+        st.rerun()
+
+    # Find the last assistant message to display sources/evidence if available
+    last_assistant_message = None
+    for msg in reversed(st.session_state.conversation_history):
+        if msg["role"] == "assistant":
+            last_assistant_message = msg["content"]
+            break
+
+    if last_assistant_message:
+        # Display evidence/sources only if the *last* processed query was GRS-related
+        # Check against the stored last_processed_query
+        if is_grs_related(st.session_state.last_processed_query):
+            st.markdown("### 📖 Evidence & Sources")
+            sources = st.session_state.last_context_and_sources.get("sources", [])
+            if sources:
+                 with st.expander("View Sources Used", expanded=False):
+                     for i, source in enumerate(sources):
+                         st.markdown(f"""
+                         <div class="source-box">
+                             <strong>Source {i+1}: {source.get('document_title', 'Unknown')}</strong> (Relevance: {1-source.get('distance', 0):.2f})<br>
+                             <small><a href="{source.get('source_url', '#')}" target="_blank">{source.get('source_url', 'No URL')}</a></small>
+                             <p style="font-size: 0.9em; color: #555;">{source.get('content_preview', 'No preview available.')}</p>
+                         </div>
+                         """, unsafe_allow_html=True)
+            else:
+                 st.info("No specific GRS sources were retrieved for the last response.")
+
+            # Display the raw context used (optional, for debugging/transparency)
+            # context = st.session_state.last_context_and_sources.get("context", "")
+            # if context:
+            #     with st.expander("View Raw Context Used", expanded=False):
+            #         st.text_area("Context", value=context, height=200, disabled=True)
+
+    # Add a footer or separator
+    st.markdown("---")
+    st.caption("DataGovAI - Utah Office of Data Privacy | GRS Knowledge Base Agent")
+
 except Exception as e:
     st.error(f"❌ Application Error: {e}")
     logger.error(f"Critical Application Error: {e}", exc_info=True)
@@ -1067,12 +1004,4 @@ except Exception as e:
     if len(st.session_state.conversation_history) > 0:
         st.session_state.conversation_history.pop()
         st.session_state.last_processed_query = ""
-
-# Footer
-st.markdown("---")
-st.markdown("""
-<small>💡 This AI assistant uses Retrieval-Augmented Generation (RAG) to provide accurate, 
-evidence-based answers from Utah's GRS documentation. All responses are generated based on 
-official documents and include references to source materials.</small>
-""", unsafe_allow_html=True)
  
