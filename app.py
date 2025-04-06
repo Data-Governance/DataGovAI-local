@@ -1,30 +1,34 @@
-import streamlit as st
 import os
-import sys
-import logging
-from typing import List, Dict, Tuple
-# Import torch early for CUDA checks
-import torch 
-from PIL import Image
+import torch
 
-# Disable Streamlit's file watcher - This helps avoid the torch.classes issue
+# Disable Streamlit's file watcher - this helps avoid the torch.classes issue
 os.environ['STREAMLIT_FILE_WATCHER_TYPE'] = 'none'
 
-# Fix for Streamlit/Torch compatibility issue
-import asyncio
-try:
-    asyncio.get_running_loop()
-except RuntimeError:
-    # Create an event loop if there isn't one
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
 # Monkeypatch torch.classes to avoid Streamlit watcher error
+# Do this *before* importing Streamlit
 import torch.classes
 if not hasattr(torch.classes, '__path__'):
     class PathFix:
         _path = []
     torch.classes.__path__ = PathFix()
+
+# Fix for Streamlit/Torch compatibility issue - event loop
+# This should also happen before Streamlit is imported
+import asyncio
+try:
+    asyncio.get_running_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+
+# Now import Streamlit and other modules
+import streamlit as st
+import sys
+import logging
+from typing import List, Dict, Tuple
+# Import torch early for CUDA checks
+import torch 
 
 import psycopg2
 import psycopg2.extras # For execute_values
@@ -485,24 +489,12 @@ You have access to the previous conversation and context. Reference this informa
 
 # --- Streamlit UI ---
 
-# Set page config
 st.set_page_config(
-    page_title="DataGovAI - Utah GRS Knowledge Base Agent",
-    page_icon="logo.png",  # Updated path to use just the filename
-    layout="wide"
+    page_title="Utah GRS Knowledge Base Agent",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
-
-# Check if logo file exists and display it
-logo_path = "logo.png"  # Updated path to use just the filename
-if os.path.exists(logo_path):
-    logo = Image.open(logo_path)
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        st.image(logo, width=200)
-else:
-    st.warning(f"Logo file not found at {logo_path}. Using text header instead.")
-
-st.title("DataGovAI - Utah GRS Knowledge Base Agent")
 
 # Custom CSS for better styling
 st.markdown("""
