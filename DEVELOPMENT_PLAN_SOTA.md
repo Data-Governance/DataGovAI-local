@@ -113,7 +113,35 @@ This section outlines the complete data processing and query pipeline:
         *   *Command:* `pip install pymupdf nltk spacy sentence-transformers torch transformers bitsandbytes`
         *   *Command:* `python -m nltk.downloader punkt && python -m spacy download en_core_web_sm`
 
-**2. Semantic Embeddings Implementation:**
+**2. Database Setup (Schema):**
+    *   **Create Database & Extension:** Create `knowledge_base` DB and enable `pgvector`.
+        *   *Status:* ✅ COMPLETED
+        *   *Action:* Used `sudo -u postgres psql` commands.
+    *   **Create Schema:** Define and create tables (`documents`, `chunks`, `entities`, `relationships`) and indexes.
+        *   *Status:* ✅ COMPLETED
+        *   *Action:* Used `scripts/init_database.sh`.
+
+**3. Repository Organization:**
+    *   **Consolidate Scripts:** Move all utility scripts to `scripts/`.
+        *   *Status:* ✅ COMPLETED
+    *   **Cleanup:** Remove redundant/deprecated files and directories.
+        *   *Status:* ✅ COMPLETED
+
+**4. Database Authentication & Configuration:**
+    *   **Define Strategy:** Use PostgreSQL user `majid` with password authentication.
+        *   *Status:* ✅ DEFINED
+    *   **Create User & Grant Permissions:** Ensure user `majid` exists and has necessary privileges.
+        *   *Status:* ✅ COMPLETED
+    *   **Set User Password:** Set the password for user `majid` to `password`.
+        *   *Status:* ✅ COMPLETED
+        *   *Action:* Ran `ALTER USER majid PASSWORD 'password';`.
+    *   **Configure `.env`:** Update `POSTGRES_CONNECTION` in `.env` file.
+        *   *Status:* ✅ COMPLETED
+        *   *Action:* Set to `postgresql://majid:password@localhost:5432/knowledge_base`.
+    *   **Verify Connection Code:** Ensure Python (`scripts/process_documents.py`) correctly uses credentials from the `.env` connection string.
+        *   *Status:* ✅ VERIFIED
+
+**5. Semantic Embeddings Implementation:**
     *   **Verify `SentenceTransformerEmbedding` Class:** (`src/.../sentence_transformer_embedding.py`)
         *   *Status:* ✅ VERIFIED - Existing class is suitable and handles local model loading, device selection (auto or specified), batching, retries.
     *   **Configure Model & Device:**
@@ -124,7 +152,7 @@ This section outlines the complete data processing and query pipeline:
             EMBEDDING_DEVICE="cuda"
             ```
 
-**3. LLM Extraction Implementation:**
+**6. LLM Extraction Implementation:**
     *   **Configure Model:**
         *   *Status:* ✅ COMPLETED - Added to .env
         *   *Action:* Updated `.env` with desired settings:
@@ -137,20 +165,22 @@ This section outlines the complete data processing and query pipeline:
         *   *Status:* ✅ IMPROVED - Enhanced prompt engineering for better JSON output with relationships
         *   *Action:* Updated extraction prompt to include relationship information and improved JSON structure.
 
-**4. Advanced Parsing Implementation (PyMuPDF):**
-    *   **Modify `process_directory` in `cli.py`:**
+**7. Advanced Parsing Implementation (PyMuPDF):**
+    *   **Integrate PyMuPDF:** Update `scripts/process_documents.py` to use PyMuPDF.
         *   *Status:* ✅ COMPLETED
-        *   *Action:* Replaced `PyPDF2` logic with `fitz` (PyMuPDF) with fallback to PyPDF2.
 
-**5. Semantic Chunking Implementation:**
-    *   **Create `semantic_chunk_document` function:** (in `src/.../utils/text.py`)
-        *   *Status:* ✅ COMPLETED - Added new function using NLTK sentence splitting
-        *   *Action:* Implemented new function using `nltk.sent_tokenize` for sentence splitting and grouping into semantic chunks.
-    *   **Update `DocumentProcessor.process_document`:**
+**8. Semantic Chunking Implementation:**
+    *   **Integrate NLTK:** Update `scripts/process_documents.py` for semantic chunking.
         *   *Status:* ✅ COMPLETED
-        *   *Action:* Modified `chunk_document` function to use the new semantic chunking approach.
 
-**6. Agent Interaction/Retrieval Implementation (RAG+KG):**
+**9. Knowledge Base Population:**
+    *   **Process Documents:** Run `scripts/process_documents.py` to ingest, chunk, embed, and store documents.
+        *   *Status:* ⏳ PENDING (Blocked by Database Authentication)
+        *   *Action:* To be run after authentication is resolved.
+    *   **Verify Entity Extraction:** (Will happen during processing)
+        *   *Status:* ⏳ PENDING
+
+**10. Agent Interaction/Retrieval Implementation (RAG+KG):**
     *   **Refactor/Implement Query Logic:** (Created new `RAGKGQueryAgent` class)
         *   *Status:* ✅ COMPLETED
         *   *Action:* Created new `query_agent.py` implementing the full 6-step RAG+KG workflow:
@@ -161,28 +191,17 @@ This section outlines the complete data processing and query pipeline:
             5. LLM-powered answer synthesis
         *   *Action:* Modified `cli.py` to use the new query agent with an `--advanced-query` flag.
 
-**7. Testing and Refinement:**
+**11. Testing and Refinement:**
     *   **Unit Tests:** Add/update tests in `tests/` for new components (parsing, chunking, extractor prompts, query logic).
         *   *Status:* ✅ COMPLETED - Created `test_query_agent.py` for RAG+KG functionality
-    *   **Integration Tests:** Test the end-to-end `process` and `query` commands with a small, representative set of GRS documents.
-        *   *Status:* ✅ COMPLETED - Created `create_knowledge_base.py` and `query_knowledge_base.py` scripts
-    *   **Debugging:** Address environment issues (CUDA, memory), model loading errors, prompt performance, and SQL query correctness.
-        *   *Status:* ✅ COMPLETED - Added error handling and troubleshooting guidance
-    *   **Evaluation:** Assess overall knowledge base quality via diverse queries. Refine prompts, chunking logic, and retrieval strategy as needed.
-        *   *Status:* ✅ COMPLETED - Added example queries in documentation
+    *   **Integration Tests:** Test `scripts/process_documents.py` and `scripts/query_knowledge_base.py`.
+        *   *Status:* ⏳ PENDING
+    *   **Debugging:** Address any new issues.
+        *   *Status:* ⏳ PENDING
+    *   **Evaluation:** Assess knowledge base quality.
+        *   *Status:* ⏳ PENDING
 
-**8. Knowledge Base Creation and Deployment:**
-    *   **Create KB Creation Script:**
-        *   *Status:* ✅ COMPLETED - Created `create_knowledge_base.py` script
-        *   *Action:* Script handles database initialization and document processing
-    *   **Create KB Query Script:**
-        *   *Status:* ✅ COMPLETED - Created `query_knowledge_base.py` script
-        *   *Action:* Script facilitates easy querying with the RAG+KG agent
-    *   **Create Detailed Documentation:**
-        *   *Status:* ✅ COMPLETED - Created `KB_README.md`
-        *   *Action:* Added comprehensive instructions, examples, and troubleshooting guidance
-
-**9. Documentation Enhancement:**
+**12. Documentation Enhancement:**
     *   **Create Documentation Structure:**
         *   *Status:* ✅ COMPLETED - Created organized documentation directory
         *   *Action:* Created `docs/` subdirectories for architecture, components, guides, and API reference

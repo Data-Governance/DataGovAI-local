@@ -29,7 +29,7 @@ The [DEVELOPMENT_PLAN_SOTA.md](../DEVELOPMENT_PLAN_SOTA.md) file in the project 
 To get a quick summary of the development status, run:
 
 ```bash
-python -m src.knowledge_base_agent.scripts.check_plan
+python scripts/check_plan.py
 ```
 
 ## 📝 Contributing to Documentation

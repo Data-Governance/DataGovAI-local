@@ -108,17 +108,17 @@ To ensure all development stays aligned with the overall plan:
 
 1. **Before coding**: Always check the development plan
    ```bash
-   python -m src.knowledge_base_agent.scripts.check_plan
+   python scripts/check_plan.py
    ```
 
 2. **Find relevant documentation**:
    ```bash
-   python -m src.knowledge_base_agent.scripts.check_docs "RAG+KG Query"
+   python scripts/check_docs.py "RAG+KG Query"
    ```
 
 3. **List available components**:
    ```bash
-   python -m src.knowledge_base_agent.scripts.check_docs --list
+   python scripts/check_docs.py --list
    ```
 
 4. **Install Git hooks** to automate development plan checking:

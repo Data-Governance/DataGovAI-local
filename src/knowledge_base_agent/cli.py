@@ -62,19 +62,16 @@ def create_processor(config) -> DocumentProcessor:
     logger = logging.getLogger(__name__)
     
     # Determine what storage implementations to use
-    if POSTGRES_AVAILABLE and config.document_store.type == "postgresql":
+    if POSTGRES_AVAILABLE and config.storage.document_store_type == "postgresql":
         logger.info("Using PostgreSQL storage implementations")
         document_store = PostgresDocumentStore(
-            connection_string=config.postgres.connection,
-            table_name=config.document_store.table_name
+            connection_string=config.storage.postgres_connection
         )
         vector_store = PostgresVectorStore(
-            connection_string=config.postgres.connection,
-            table_name=config.vector_store.table_name
+            connection_string=config.storage.postgres_connection
         )
         knowledge_store = PostgresKnowledgeStore(
-            connection_string=config.postgres.connection,
-            table_name=config.knowledge_store.table_name
+            connection_string=config.storage.postgres_connection
         )
     else:
         # For now, fall back to memory-based implementations
@@ -82,12 +79,12 @@ def create_processor(config) -> DocumentProcessor:
         # These would be simple in-memory implementations
         
     # Initialize embedding model
-    if config.embedding.model.startswith("text-embedding-") or config.embedding.provider == "openai":
+    if config.embedding.model.startswith("text-embedding-") or getattr(config.embedding, 'provider', '') == "openai":
         # Use OpenAI if configured
         logger.info(f"Using OpenAI embedding model: {config.embedding.model}")
         embedding_model = OpenAIEmbedding(
             model=config.embedding.model,
-            api_key=config.openai.api_key,
+            api_key=config.embedding.api_key,
             batch_size=config.embedding.batch_size
         )
     else:
@@ -101,13 +98,13 @@ def create_processor(config) -> DocumentProcessor:
         )
         
     # Initialize entity extractor
-    if hasattr(config, 'extractor') and hasattr(config.extractor, 'model'):
-        logger.info(f"Using Local LLM extractor with model: {config.extractor.model}")
+    if hasattr(config, 'extractor') and hasattr(config.extractor, 'model_name'):
+        logger.info(f"Using Local LLM extractor with model: {config.extractor.model_name}")
         # Use local LLM extractor
         device = getattr(config.extractor, 'device', None) or ("cuda" if torch.cuda.is_available() else "cpu")
-        use_4bit = getattr(config.extractor, '4bit', True)
+        use_4bit = getattr(config.extractor, 'load_in_4bit', True)
         entity_extractor = LocalLlmExtractor(
-            model_name=config.extractor.model,
+            model_name=config.extractor.model_name,
             device=device,
             load_in_4bit=use_4bit
         )
@@ -115,7 +112,7 @@ def create_processor(config) -> DocumentProcessor:
         # Fall back to OpenAI-based extraction if no local LLM configured
         logger.info("Using OpenAI-based entity extraction")
         from .extractors.entity_extractor import EntityExtractor
-        entity_extractor = EntityExtractor(api_key=config.openai.api_key)
+        entity_extractor = EntityExtractor(api_key=config.embedding.api_key)
         
     # Create and return processor
     processor = DocumentProcessor(

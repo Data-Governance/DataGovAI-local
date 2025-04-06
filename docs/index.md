@@ -66,8 +66,8 @@ The SOTA branch follows the [Development Plan](../DEVELOPMENT_PLAN_SOTA.md), whi
 | Task | Resource |
 |------|----------|
 | **Setting up the project** | [Getting Started Guide](guides/getting_started.md) |
-| **Processing documents** | [create_knowledge_base.py](../create_knowledge_base.py) |
-| **Querying the knowledge base** | [query_knowledge_base.py](../query_knowledge_base.py) |
+| **Processing documents** | [scripts/process_documents.py](../scripts/process_documents.py) |
+| **Querying the knowledge base** | [scripts/query_knowledge_base.py](../scripts/query_knowledge_base.py) |
 | **Understanding the query system** | [RAG+KG Query Agent](components/query_agent.md) |
 | **Tracking development progress** | [Development Tracking Guide](guides/development_tracking.md) |
 

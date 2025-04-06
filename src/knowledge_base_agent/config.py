@@ -28,6 +28,14 @@ class EmbeddingConfig(BaseModel):
     api_key: Optional[str] = Field(default=None, description="OpenAI API key")
     batch_size: int = Field(default=100, description="Batch size for embedding generation")
     cache_size: int = Field(default=1000, description="Size of embedding cache")
+    device: Optional[str] = Field(default=None, description="Device to run the model on ('cuda' or 'cpu')")
+
+    @validator("device", pre=True)
+    def validate_device(cls, v):
+        """Validate device setting."""
+        if v and v not in ["cuda", "cpu"]:
+            raise ValueError("Device must be either 'cuda' or 'cpu'")
+        return v
 
 class ProcessingConfig(BaseModel):
     """Document processing configuration."""
@@ -132,9 +140,14 @@ class Config(BaseModel):
         env_mapping = {
             'OPENAI_API_KEY': ('embedding', 'api_key'),
             'EMBEDDING_MODEL': ('embedding', 'model'),
+            'EMBEDDING_DEVICE': ('embedding', 'device'),
+            'EMBEDDING_BATCH_SIZE': ('embedding', 'batch_size'),
             'LOG_LEVEL': ('logging', 'level'),
             'STORAGE_PATH': ('storage', 'storage_path'),
             'POSTGRES_CONNECTION': ('storage', 'postgres_connection'),
+            'DOCUMENT_STORE_TYPE': ('storage', 'document_store_type'),
+            'VECTOR_STORE_TYPE': ('storage', 'vector_store_type'),
+            'KNOWLEDGE_STORE_TYPE': ('storage', 'knowledge_store_type'),
             'API_HOST': ('api', 'host'),
             'API_PORT': ('api', 'port'),
             'API_DEBUG': ('api', 'debug'),
