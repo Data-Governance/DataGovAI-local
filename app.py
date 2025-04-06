@@ -20,13 +20,20 @@ from pgvector.psycopg2 import register_vector
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# DEBUG: Print .env loading and contents
+load_dotenv(verbose=True)
+logger.info(f"POSTGRES_CONNECTION from env: {os.getenv('POSTGRES_CONNECTION')}")
+# Explicitly set the connection string if not properly loaded from .env
+if not os.getenv('POSTGRES_CONNECTION') or ':password@' not in os.getenv('POSTGRES_CONNECTION'):
+    os.environ['POSTGRES_CONNECTION'] = 'postgresql://postgres:password@127.0.0.1:5432/knowledge_base'
+    logger.info(f"Updated POSTGRES_CONNECTION: {os.getenv('POSTGRES_CONNECTION')}")
+
 # --- Configuration Loading & Caching ---
 
 # Use Streamlit's caching for expensive operations like loading models or config
 @st.cache_resource # Cache resource across sessions
 def load_config_and_clients():
     """Load configuration, initialize clients and models."""
-    load_dotenv()
     # Cleaned up dictionary definition
     config = {
         "postgres_connection": os.getenv("POSTGRES_CONNECTION"),

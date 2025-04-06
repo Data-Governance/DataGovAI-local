@@ -1,0 +1,43 @@
+name: rag_env
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  # Core Python and CUDA
+  - python=3.10
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  
+  # Scientific and ML dependencies
+  - numpy
+  - pandas
+  - scikit-learn
+  - psycopg2
+  
+  # System utilities
+  - pip
+  - pip:
+    # Transformers and embedding
+    - sentence-transformers>=4.0.0
+    - transformers>=4.35.0
+    - accelerate
+    - bitsandbytes
+    
+    # Document processing
+    - pymupdf>=1.23.0
+    
+    # UI and visualization
+    - streamlit>=1.27.0
+    - streamlit-chat>=0.1.1
+    - plotly>=5.16.0
+    
+    # Database and vector storage
+    - pgvector>=0.2.0
+    
+    # Configuration and API
+    - python-dotenv>=1.0.0
+    - openai>=1.0.0 
