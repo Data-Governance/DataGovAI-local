@@ -715,6 +715,8 @@ if len(st.session_state.conversation_history) > 0:
             st.session_state.last_context_and_sources = {"context": "", "sources": []}
             st.session_state.conversation_mode = False
             st.session_state.last_processed_query = ""
+            st.session_state.input_key = ""
+            st.session_state.query_to_process = None
             st.rerun()
     
     with col2:
