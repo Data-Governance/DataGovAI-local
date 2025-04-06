@@ -56,10 +56,39 @@ cp .env.example .env
 python scripts/init_db.py
 ```
 
-3. Run:
+3. Run the application:
 ```bash
-streamlit run app.py
-# Visit http://localhost:8501
+# Run using the launcher (recommended)
+python app_launcher.py
+# Visit http://localhost:8505
+```
+
+### Running the Application
+
+The DataGovAI application should be launched using `app_launcher.py` rather than directly with Streamlit. This is because:
+
+1. The launcher handles PyTorch-Streamlit compatibility issues
+2. It applies necessary environment configurations and workarounds
+3. It ensures proper functioning of GPU-accelerated models within Streamlit
+
+```bash
+# ✅ Recommended: Use the launcher script
+python app_launcher.py
+
+# ❌ Not recommended: Direct Streamlit launch may cause compatibility issues
+# streamlit run app.py
+```
+
+The application will be available at `http://localhost:8505` by default.
+
+#### Troubleshooting
+
+If you see "Port 8505 is already in use" error:
+```bash
+# Find the process using the port
+lsof -i :8505
+# Kill the process
+kill -9 <PID>
 ```
 
 ## 💬 Usage Examples
@@ -91,19 +120,18 @@ streamlit run app.py
 |----------|-------------|----------|
 | Database | POSTGRES_CONNECTION | `postgresql://user:pass@localhost:5432/kb` |
 | Embeddings | EMBEDDING_MODEL<br>EMBEDDING_DEVICE | `all-mpnet-base-v2`<br>`cuda` |
-| Application | FLASK_ENV<br>DEBUG | `development`<br>`True` |
+| Application | STREAMLIT_SERVER_PORT | `8505` |
 
 ## 📁 Project Structure
 
 ```
 DataGovAI/
-├── app/                # Main application code
-│   ├── static/        # CSS, JS, and assets
-│   └── templates/     # HTML templates
-├── app.py             # Flask application
+├── app.py             # Main Streamlit application
+├── app_launcher.py    # Application launcher with PyTorch compatibility fixes
 ├── data/              # Document storage
 ├── docs/              # Documentation
 ├── scripts/           # Utility scripts
+├── knowledge_base_agent/ # Core KB agent functionality
 └── tests/             # Test suite
 ```
 
