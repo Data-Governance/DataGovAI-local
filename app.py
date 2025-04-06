@@ -23,10 +23,9 @@ logger = logging.getLogger(__name__)
 # DEBUG: Print .env loading and contents
 load_dotenv(verbose=True)
 logger.info(f"POSTGRES_CONNECTION from env: {os.getenv('POSTGRES_CONNECTION')}")
-# Explicitly set the connection string if not properly loaded from .env
-if not os.getenv('POSTGRES_CONNECTION') or ':password@' not in os.getenv('POSTGRES_CONNECTION'):
-    os.environ['POSTGRES_CONNECTION'] = 'postgresql://postgres:password@127.0.0.1:5432/knowledge_base'
-    logger.info(f"Updated POSTGRES_CONNECTION: {os.getenv('POSTGRES_CONNECTION')}")
+# Explicitly set the connection string with proper password
+os.environ['POSTGRES_CONNECTION'] = 'postgresql://postgres:password@127.0.0.1:5432/knowledge_base'
+logger.info(f"Updated POSTGRES_CONNECTION: {os.getenv('POSTGRES_CONNECTION')}")
 
 # --- Configuration Loading & Caching ---
 
@@ -85,63 +84,132 @@ def generate_query_embedding(_embedding_model, text: str) -> np.ndarray:
     return embedding[0]
 
 # @st.cache_data
-def find_relevant_chunks(conn, _query_embedding: np.ndarray, top_k: int = 5) -> List[Tuple[str, float]]:
-    """Find top_k relevant chunk IDs using vector similarity search directly on the chunks table."""
+def find_relevant_chunks(conn, _query_embedding: np.ndarray, top_k: int = 5) -> List[Tuple[str, float, str]]:
+    """Find top_k relevant chunks using vector similarity search, including document source."""
     logger.info(f"Searching for top {top_k} relevant chunks in 'chunks' table...")
     results = []
     try:
         with conn.cursor() as cur:
-            sql = """
-                SELECT chunk_id, embedding <=> %s::vector AS distance
-                FROM chunks
-                WHERE embedding IS NOT NULL
-                ORDER BY distance ASC
-                LIMIT %s;
-                """
-            cur.execute(sql, (_query_embedding, top_k))
-            results = cur.fetchall()
-            logger.info(f"Found {len(results)} relevant chunk candidates from 'chunks' table.")
-            return [(row[0], row[1]) for row in results]
+            # First try the full query with document join
+            try:
+                sql = """
+                    SELECT c.chunk_id, c.embedding <=> %s::vector AS distance, d.title
+                    FROM chunks c
+                    JOIN documents d ON c.document_id = d.document_id
+                    WHERE c.embedding IS NOT NULL
+                    ORDER BY distance ASC
+                    LIMIT %s;
+                    """
+                cur.execute(sql, (_query_embedding, top_k))
+                results = cur.fetchall()
+                logger.info(f"Found {len(results)} relevant chunk candidates with document titles.")
+                return [(row[0], row[1], row[2]) for row in results]
+            except Exception as e:
+                logger.warning(f"Join query failed, trying simple query: {e}")
+                # Fallback to simple query without joins
+                sql = """
+                    SELECT chunk_id, embedding <=> %s::vector AS distance
+                    FROM chunks
+                    WHERE embedding IS NOT NULL
+                    ORDER BY distance ASC
+                    LIMIT %s;
+                    """
+                cur.execute(sql, (_query_embedding, top_k))
+                results = cur.fetchall()
+                logger.info(f"Found {len(results)} relevant chunk candidates (basic query).")
+                return [(row[0], row[1], "Unknown Source") for row in results]
     except Exception as e:
         logger.error(f"Error during vector search in chunks table: {e}")
         st.warning(f"Vector search failed: {e}")
-        return [] # Return empty list on error
-    # Note: Removed rollback as SELECT doesn't modify data
+        return []
 
 # @st.cache_data
-def get_chunk_text(conn, chunk_ids: List[str]) -> Dict[str, str]:
-    """Retrieve text content for given chunk IDs."""
+def get_chunk_text(conn, chunk_ids: List[str]) -> Dict[str, Dict[str, str]]:
+    """Retrieve text content and metadata for given chunk IDs."""
     if not chunk_ids:
         return {}
     logger.info(f"Retrieving text for {len(chunk_ids)} chunks...")
     chunk_map = {}
     try:
         with conn.cursor() as cur:
+            # First try the detailed query with document join
+            try:
+                sql = """
+                    SELECT c.chunk_id, c.content, d.title, d.source_url, d.metadata
+                    FROM chunks c
+                    JOIN documents d ON c.document_id = d.document_id
+                    WHERE c.chunk_id = ANY(%s)
+                """
+                cur.execute(sql, (chunk_ids,))
+                results = cur.fetchall()
+                for row in results:
+                    chunk_map[row[0]] = {
+                        'content': row[1],
+                        'document_title': row[2] or "Unknown Document",
+                        'source_url': row[3] or "#",
+                        'metadata': row[4] or {}
+                    }
+                if results:
+                    logger.info("Retrieved chunks with document metadata.")
+                    return chunk_map
+            except Exception as e:
+                logger.warning(f"Detailed query failed, trying basic query: {e}")
+                
+            # Fallback to basic query
             sql = "SELECT chunk_id, content FROM chunks WHERE chunk_id = ANY(%s)"
             cur.execute(sql, (chunk_ids,))
             results = cur.fetchall()
-            chunk_map = {row[0]: row[1] for row in results}
+            for row in results:
+                chunk_map[row[0]] = {
+                    'content': row[1],
+                    'document_title': "Document " + row[0][:8],
+                    'source_url': "#",
+                    'metadata': {}
+                }
+            logger.info("Retrieved basic chunk content without document metadata.")
             return chunk_map
     except Exception as e:
         logger.error(f"Error retrieving chunk text: {e}")
         st.warning(f"Failed to retrieve chunk text: {e}")
-        return {} # Return empty dict on error
-    # Note: Removed rollback as SELECT doesn't modify data
+        return {}
 
 # No caching for LLM call as it depends on context which changes
-def generate_response(_openai_client, model_name: str, query: str, context: str) -> str:
-    """Generate response using OpenAI LLM with query and context."""
+def generate_response(_openai_client, model_name: str, query: str, context: str, sources: List[Dict]) -> str:
+    """Generate response using OpenAI LLM with query, context, and source information."""
     if not context:
         return "Could not retrieve relevant context to answer the query."
     
     logger.info("Generating response using OpenAI...")
-    system_prompt = "You are a helpful assistant answering questions based on the provided context from Utah's General Retention Schedules (GRS). Answer the user's query using ONLY the information given in the context. If the context doesn't contain the answer, state that the information is not available in the provided context."
+    
+    # Format sources for the prompt
+    sources_text = "\n".join([
+        f"- {source['document_title']} ({source['source_url']})"
+        for source in sources if source['document_title'] and source['source_url']
+    ])
+    
+    system_prompt = """You are a helpful assistant answering questions about Utah's General Retention Schedules (GRS).
+Your responses should be:
+1. Evidence-based: Only use information explicitly stated in the provided context
+2. Well-structured: Use clear paragraphs and bullet points when appropriate
+3. Source-aware: Reference specific GRS documents when providing information
+4. Comprehensive: Cover all relevant aspects from the context
+5. Clear about limitations: If information is not in the context, say so explicitly
+
+Format your response with:
+1. A direct answer to the query
+2. Supporting evidence from the GRS documents
+3. Specific references to source documents
+4. Any relevant caveats or limitations"""
+
     user_prompt = f"""Context:
 {context}
 
+Sources:
+{sources_text}
+
 Query: {query}
 
-Answer:"""
+Please provide a comprehensive, evidence-based response using the format specified."""
     
     try:
         response = _openai_client.chat.completions.create(
@@ -162,92 +230,171 @@ Answer:"""
 
 # --- Streamlit UI ---
 
-st.set_page_config(page_title="GRS Knowledge Base Agent", layout="wide")
+st.set_page_config(
+    page_title="Utah GRS Knowledge Base Agent",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-st.title("Utah GRS Knowledge Base Agent")
-st.markdown("Ask questions about Utah's General Retention Schedules (GRS). This agent uses Retrieval-Augmented Generation (RAG) to find relevant information from the GRS documents and generate answers.")
+# Custom CSS for better styling
+st.markdown("""
+    <style>
+    .stButton>button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    .source-box {
+        background-color: #f0f2f6;
+        border-radius: 5px;
+        padding: 10px;
+        margin: 10px 0;
+    }
+    .evidence-box {
+        border-left: 3px solid #00acb5;
+        padding-left: 10px;
+        margin: 10px 0;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("📚 Utah GRS Knowledge Base Agent")
+st.markdown("""
+This AI assistant helps you find information about Utah's General Retention Schedules (GRS).
+It provides evidence-based answers using official GRS documentation.
+""")
 
 # Load models and config once
 config, embedding_model, openai_client = load_config_and_clients()
 
-# Sample Questions Expander
-with st.expander("Sample Questions"):
-    st.markdown("- What is the retention period for employee personnel files?")
-    st.markdown("- How long should we keep general correspondence?")
-    st.markdown("- What is the disposition for audio/video recordings of meetings?")
-    st.markdown("- Are there specific requirements for storing electronic records?")
-    st.markdown("- What schedule covers accounts payable records?")
+# Initialize session state
+if "query" not in st.session_state:
+    st.session_state.query = ""
+
+# Sample Questions in Sidebar
+st.sidebar.markdown("### 📝 Sample Questions")
+sample_questions = {
+    "Personnel Records": "What is the retention period for employee personnel files?",
+    "Correspondence": "How long should we keep general correspondence?",
+    "Meeting Records": "What is the disposition for audio/video recordings of meetings?",
+    "Electronic Records": "Are there specific requirements for storing electronic records?",
+    "Financial Records": "What schedule covers accounts payable records?",
+    "Training Records": "How long should we keep employee training records?",
+    "Legal Documents": "What is the retention period for contracts and agreements?",
+    "Email Management": "What are the requirements for email retention?",
+    "Facility Records": "How long should we keep building maintenance records?",
+    "HR Documents": "What is the retention schedule for job applications?"
+}
+
+st.sidebar.markdown("Click any sample question or type your own:")
+for category, question in sample_questions.items():
+    if st.sidebar.button(f"🔍 {category}", key=f"btn_{category}"):
+        st.session_state.query = question
 
 # User Input
-st.markdown("## Ask a Question")
-query = st.text_input("Enter your question about the GRS:", key="query_input")
+st.markdown("## ❓ Ask a Question")
+query = st.text_input("Enter your question about the GRS:", key="query_input", value=st.session_state.get("query", ""))
 
-if query:
-    st.markdown("--- ")
-    # Establish DB connection for this query
-    conn = get_db_connection(config['postgres_connection'])
-    
-    if conn:
-        try:
-            # 1. Generate Query Embedding
-            with st.spinner("Generating query embedding..."):
-                query_embedding = generate_query_embedding(embedding_model, query)
-            
-            # 2. Find Relevant Chunks
-            with st.spinner("Searching for relevant information..."):
-                relevant_chunk_data = find_relevant_chunks(conn, query_embedding, top_k=5)
-            
-            if not relevant_chunk_data:
-                st.warning("Could not find relevant documents for the query in the knowledge base.")
-            else:
-                relevant_chunk_ids = [item[0] for item in relevant_chunk_data]
-                logger.info(f"Relevant chunk IDs (with distances): {relevant_chunk_data}")
+# Main app logic wrapped in try-except for robust error handling
+try:
+    if query:
+        st.markdown("---")
+        # Establish DB connection for this query
+        conn = get_db_connection(config['postgres_connection'])
+        
+        if conn:
+            try:
+                # 1. Generate Query Embedding
+                with st.spinner("🔍 Analyzing your question..."):
+                    query_embedding = generate_query_embedding(embedding_model, query)
                 
-                # 3. Retrieve Chunk Text
-                with st.spinner("Retrieving context..."):
-                    chunk_texts_map = get_chunk_text(conn, relevant_chunk_ids)
+                # 2. Find Relevant Chunks
+                with st.spinner("📚 Searching through GRS documents..."):
+                    relevant_chunk_data = find_relevant_chunks(conn, query_embedding, top_k=5)
                 
-                # Reconstruct context string in order of relevance
-                context_parts = []
-                retrieved_context_details = [] # For display
-                for chunk_id, distance in relevant_chunk_data:
-                    if chunk_id in chunk_texts_map:
-                        context_parts.append(chunk_texts_map[chunk_id])
-                        retrieved_context_details.append(f"- Chunk ID: `{chunk_id}` (Distance: {distance:.4f})")
-                    else:
-                        logger.warning(f"Could not retrieve text for relevant chunk ID: {chunk_id}")
-                        st.warning(f"Context retrieval issue for chunk {chunk_id}")
-                
-                context_string = "\n\n---\n\n".join(context_parts)
-
-                # 4. Generate Response
-                if not context_string:
-                    st.error("Failed to retrieve context for the relevant chunks.")
+                if not relevant_chunk_data:
+                    st.warning("⚠️ Could not find relevant documents for the query in the knowledge base.")
                 else:
-                    with st.spinner("Generating answer..."):
-                        answer = generate_response(openai_client, config['openai_model'], query, context_string)
+                    relevant_chunk_ids = [item[0] for item in relevant_chunk_data]
+                    logger.info(f"Relevant chunk IDs (with distances): {relevant_chunk_data}")
                     
-                    # 5. Display Result
-                    st.markdown("### Answer")
-                    st.markdown(answer)
+                    # 3. Retrieve Chunk Text and Metadata
+                    with st.spinner("📄 Gathering context..."):
+                        chunk_texts_map = get_chunk_text(conn, relevant_chunk_ids)
                     
-                    # Optional: Display retrieved context details
-                    with st.expander("Retrieved Context Details"):
-                        st.markdown("\n".join(retrieved_context_details))
-                        st.text_area("Full Context Sent to LLM", context_string, height=200)
-                        
-        except Exception as e:
-            st.error(f"An error occurred during the query process: {e}")
-            logger.error(f"Error during Streamlit query execution: {e}", exc_info=True)
-        finally:
-            if conn:
-                conn.close()
-                logger.info("Database connection closed for query.")
+                    # Prepare context and sources
+                    context_parts = []
+                    sources = []
+                    for chunk_id, distance, doc_title in relevant_chunk_data:
+                        if chunk_id in chunk_texts_map:
+                            chunk_info = chunk_texts_map[chunk_id]
+                            context_parts.append(chunk_info['content'])
+                            sources.append({
+                                'document_title': chunk_info['document_title'],
+                                'source_url': chunk_info['source_url']
+                            })
+                        else:
+                            logger.warning(f"Could not retrieve text for relevant chunk ID: {chunk_id}")
+                    
+                    context_string = "\n\n---\n\n".join(context_parts)
 
-# Need torch for CUDA check in load_config
-# if 'torch' not in sys.modules: # Remove this check at the end
-#     try:
-#         import torch
-#     except ImportError:
-#         logger.warning("Torch is not installed, CUDA check might fail.")
+                    # 4. Generate Response
+                    if not context_string:
+                        st.error("❌ Failed to retrieve context for the relevant chunks.")
+                    else:
+                        with st.spinner("🤔 Generating comprehensive answer..."):
+                            answer = generate_response(openai_client, config['openai_model'], query, context_string, sources)
+                        
+                        # 5. Display Result
+                        st.markdown("### 📝 Answer")
+                        st.markdown(answer)
+                        
+                        # Display Sources
+                        with st.expander("📚 Source Documents"):
+                            st.markdown("This answer was generated based on the following GRS documents:")
+                            for source in sources:
+                                if source['document_title'] and source['source_url']:
+                                    st.markdown(f"""
+                                    <div class='source-box'>
+                                        📄 <b>{source['document_title']}</b><br>
+                                        🔗 <a href="{source['source_url']}" target="_blank">View Source Document</a>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                        
+                            st.markdown("""
+                            <small>Note: The response is generated based on the content of these documents. 
+                            Always verify critical information by consulting the original source documents.</small>
+                            """, unsafe_allow_html=True)
+                        
+                        # Display Raw Context (for transparency)
+                        with st.expander("🔍 View Retrieved Context"):
+                            st.markdown("The AI used the following excerpts to generate the answer:")
+                            for chunk_id, distance, _ in relevant_chunk_data:
+                                if chunk_id in chunk_texts_map:
+                                    chunk_info = chunk_texts_map[chunk_id]
+                                    st.markdown(f"""
+                                    <div class='evidence-box'>
+                                        <small>From: {chunk_info['document_title']}</small><br>
+                                        {chunk_info['content']}
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                        
+            except Exception as e:
+                st.error(f"❌ An error occurred during the query process: {e}")
+                logger.error(f"Error during Streamlit query execution: {e}", exc_info=True)
+            finally:
+                if conn:
+                    conn.close()
+                    logger.info("Database connection closed for query.")
+except Exception as e:
+    st.error(f"❌ Application Error: {e}")
+    logger.error(f"Critical Application Error: {e}", exc_info=True)
+
+# Footer
+st.markdown("---")
+st.markdown("""
+<small>💡 This AI assistant uses Retrieval-Augmented Generation (RAG) to provide accurate, 
+evidence-based answers from Utah's GRS documentation. All responses are generated based on 
+official documents and include references to source materials.</small>
+""", unsafe_allow_html=True)
  
