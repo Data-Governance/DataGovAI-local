@@ -67,11 +67,113 @@ def get_db_connection(conn_string: str):
         conn = psycopg2.connect(conn_string)
         register_vector(conn) # Register pgvector types for this connection
         logger.info("Database connection established and pgvector registered.")
+        
+        # Verify and initialize database structure if needed
+        verify_db_structure(conn)
+        
         return conn
     except Exception as e:
         logger.error(f"Failed to connect to database or register pgvector: {e}")
         st.error(f"Database Connection Error: {e}")
         st.stop() # Stop execution if DB connection fails
+
+def verify_db_structure(conn):
+    """Verify that the database has the required tables and structure."""
+    try:
+        with conn.cursor() as cur:
+            # Check if chunks table exists
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'chunks'
+                );
+            """)
+            chunks_exists = cur.fetchone()[0]
+            
+            # Check if documents table exists
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'documents'
+                );
+            """)
+            documents_exists = cur.fetchone()[0]
+            
+            if not chunks_exists:
+                logger.warning("Chunks table does not exist, creating...")
+                # Create chunks table with minimum required fields
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS chunks (
+                        chunk_id TEXT PRIMARY KEY,
+                        document_id TEXT,
+                        content TEXT NOT NULL,
+                        embedding vector(768)
+                    );
+                """)
+                conn.commit()
+                logger.info("Created chunks table")
+                
+                # Insert a sample record for testing
+                cur.execute("""
+                    INSERT INTO chunks (chunk_id, document_id, content) 
+                    VALUES ('sample_chunk_001', 'sample_doc_001', 'This is a sample document chunk for testing. It contains information about Utah GRS.') 
+                    ON CONFLICT (chunk_id) DO NOTHING;
+                """)
+                conn.commit()
+                
+            if not documents_exists:
+                logger.warning("Documents table does not exist, creating...")
+                # Create documents table with minimum required fields
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS documents (
+                        document_id TEXT PRIMARY KEY,
+                        title TEXT,
+                        source_url TEXT,
+                        metadata JSONB
+                    );
+                """)
+                conn.commit()
+                logger.info("Created documents table")
+                
+                # Insert a sample record for testing
+                cur.execute("""
+                    INSERT INTO documents (document_id, title, source_url, metadata) 
+                    VALUES ('sample_doc_001', 'Sample GRS Document', 'https://archives.utah.gov/rim/retention-schedules.html', '{"type": "sample", "version": "1.0"}') 
+                    ON CONFLICT (document_id) DO NOTHING;
+                """)
+                conn.commit()
+                
+            # Set up foreign key relationship if both tables exist now
+            if chunks_exists and documents_exists:
+                # Check if foreign key exists
+                cur.execute("""
+                    SELECT COUNT(*) FROM information_schema.table_constraints
+                    WHERE constraint_name = 'fk_chunks_document_id'
+                    AND table_name = 'chunks';
+                """)
+                fk_exists = cur.fetchone()[0] > 0
+                
+                if not fk_exists:
+                    # Try to add foreign key - may fail if data integrity issues
+                    try:
+                        cur.execute("""
+                            ALTER TABLE chunks
+                            ADD CONSTRAINT fk_chunks_document_id
+                            FOREIGN KEY (document_id)
+                            REFERENCES documents(document_id);
+                        """)
+                        conn.commit()
+                        logger.info("Added foreign key constraint between chunks and documents")
+                    except Exception as e:
+                        logger.warning(f"Could not add foreign key constraint: {e}")
+                        conn.rollback()
+            
+            logger.info("Database structure verification completed")
+            
+    except Exception as e:
+        logger.error(f"Error verifying database structure: {e}")
+        conn.rollback()
+        raise
 
 # --- Core RAG Functions (adapted for Streamlit) ---
 
@@ -106,6 +208,8 @@ def find_relevant_chunks(conn, _query_embedding: np.ndarray, top_k: int = 5) -> 
                 return [(row[0], row[1], row[2]) for row in results]
             except Exception as e:
                 logger.warning(f"Join query failed, trying simple query: {e}")
+                # Rollback on error to clear the transaction state
+                conn.rollback()
                 # Fallback to simple query without joins
                 sql = """
                     SELECT chunk_id, embedding <=> %s::vector AS distance
@@ -120,6 +224,8 @@ def find_relevant_chunks(conn, _query_embedding: np.ndarray, top_k: int = 5) -> 
                 return [(row[0], row[1], "Unknown Source") for row in results]
     except Exception as e:
         logger.error(f"Error during vector search in chunks table: {e}")
+        # Rollback on error to clear the transaction state
+        conn.rollback()
         st.warning(f"Vector search failed: {e}")
         return []
 
@@ -154,6 +260,8 @@ def get_chunk_text(conn, chunk_ids: List[str]) -> Dict[str, Dict[str, str]]:
                     return chunk_map
             except Exception as e:
                 logger.warning(f"Detailed query failed, trying basic query: {e}")
+                # Rollback on error to clear the transaction state
+                conn.rollback()
                 
             # Fallback to basic query
             sql = "SELECT chunk_id, content FROM chunks WHERE chunk_id = ANY(%s)"
@@ -170,6 +278,8 @@ def get_chunk_text(conn, chunk_ids: List[str]) -> Dict[str, Dict[str, str]]:
             return chunk_map
     except Exception as e:
         logger.error(f"Error retrieving chunk text: {e}")
+        # Rollback on error to clear the transaction state
+        conn.rollback()
         st.warning(f"Failed to retrieve chunk text: {e}")
         return {}
 
