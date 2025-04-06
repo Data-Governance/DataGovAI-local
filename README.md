@@ -246,6 +246,25 @@ The Knowledge Base Agent is built around a central `DocumentProcessor` which orc
 
 This modular design allows for flexibility in choosing different storage backends, embedding models, and processing techniques.
 
+## 🤔 Knowledge Base Design Rationale (Hybrid RAG+KG)
+
+The choice of a hybrid Retrieval-Augmented Generation (RAG) and Knowledge Graph (KG) approach for the knowledge base stems from the specific characteristics of the Utah General Retention Schedules (GRS) data:
+
+**1. GRS Data Characteristics:**
+   *   **High Volume & Variety:** The dataset comprises nearly 20,000 documents with diverse types, from specific forms to broad guidelines.
+   *   **Structured Information:** GRS documents inherently contain structured data points (Record Series Numbers, Titles, Retention Periods, Dispositions, Legal Authorities) crucial for precise queries.
+   *   **Descriptive Content:** Significant descriptive text explains context, purpose, and scope, requiring semantic understanding.
+   *   **Categorization Challenge:** Even after classification efforts, a large portion (~50% in initial analyses) remains less defined ("other/general"), indicating that purely structured approaches might be insufficient.
+
+**2. Evaluating Storage/Retrieval Approaches:**
+   *   **Vector Store (RAG) Only:** Good for semantic similarity ("*Find documents about X*") but weak for precise fact retrieval ("*What is the retention period for Y?*"). It struggles to reliably extract specific details like dates or codes from unstructured text chunks alone.
+   *   **Knowledge Graph (KG) Only:** Excellent for structured facts and relationships ("*Show records with 'Permanent' retention linked to 'State Archives'*"). However, it depends heavily on consistent LLM extraction across all documents, which can be challenging with diverse and less structured content. It also doesn't handle purely conceptual queries well.
+   *   **Hybrid RAG + KG (Chosen Approach):** Leverages the strengths of both:
+        *   The **KG** captures explicit, structured facts (Retention, Disposition, Series Number) for precise, targeted queries.
+        *   The **RAG** component captures the semantic meaning of descriptive text, enabling broader conceptual searches and providing rich context for LLM answer synthesis. It serves as a vital fallback for documents where KG extraction might be incomplete or less reliable (e.g., the "other" category).
+
+**Conclusion:** The Hybrid RAG + KG architecture provides the necessary balance of structured fact retrieval and semantic understanding required to effectively query the complex and varied GRS dataset.
+
 ## 🚀 Technology Stack
 
 | Layer | Technologies |
