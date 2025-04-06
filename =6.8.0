@@ -1,6 +1,0 @@
-Collecting importlib-metadata
-  Using cached importlib_metadata-8.6.1-py3-none-any.whl.metadata (4.7 kB)
-Requirement already satisfied: zipp>=3.20 in /home/majid/.local/lib/python3.10/site-packages (from importlib-metadata) (3.21.0)
-Using cached importlib_metadata-8.6.1-py3-none-any.whl (26 kB)
-Installing collected packages: importlib-metadata
-Successfully installed importlib-metadata-8.6.1

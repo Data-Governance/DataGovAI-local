@@ -1,52 +1,121 @@
-# 🧠 Knowledge Base Agent
+# 🧠 Knowledge Base Agent for Utah GRS
 
-> Building next-generation knowledge processing systems with modern technologies
+A powerful RAG (Retrieval-Augmented Generation) based knowledge base agent specifically designed for Utah's General Retention Schedules (GRS). This system helps government entities efficiently access and understand record retention requirements and related policies.
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](CONTRIBUTING.md)
-[![Last Updated](https://img.shields.io/badge/Last%20Updated-2024-blue.svg)](https://github.com/yourusername/knowledge-base-agent/commits/main)
+## 🎯 Project Context
 
-A powerful and flexible knowledge base agent that processes, stores, and retrieves information using advanced AI techniques. This repository provides comprehensive documentation and implementation for building modern knowledge base systems.
+This Knowledge Base Agent is part of the **DataGovAI** platform, a collaboration between Utah Valley University's Smith College of Engineering and Technology and the Utah Office of Data Privacy (ODP). The system processes and provides intelligent access to Utah's General Retention Schedules, helping government entities maintain compliance with state records management requirements.
 
 ## ✨ Features
 
-- Document processing with chunking and embedding generation
-- Vector similarity search using PostgreSQL/pgvector (or other backends) - **(RAG Component)**
-- Knowledge graph storage using PostgreSQL (or other backends like Neo4j) - **(KG Component)**
-- Entity and relationship extraction using LLMs - **(KG Component)**
-- **Advanced Hybrid Retrieval (RAG+KG) query system** combining vector search with knowledge graph queries
-- Semantic chunking for optimal document segmentation
-- RESTful API with FastAPI
-- CLI interface for easy interaction
-- Comprehensive test suite
-- Docker support for easy deployment
+- 🤖 Intelligent chat interface for querying GRS documents
+- 🔍 Advanced RAG-based retrieval system
+- 📚 Comprehensive document processing pipeline
+- 🎯 High-accuracy responses with source citations
+- 💡 Helpful example questions and guidance
+- 🔐 Environment-based configuration
+- 📊 Clean and intuitive web interface
 
-## 📈 SOTA Branch
+## 🚀 Quick Start
 
-The `sota` branch offers state-of-the-art features designed to maximize semantic accuracy and leverage local GPU resources:
+### Prerequisites
 
-- 🔍 **PyMuPDF** for superior PDF extraction with layout preservation
-- 🧠 **Semantic Chunking** using NLTK/spaCy for context-aware document segmentation
-- 🔮 **SentenceTransformers** for high-quality, GPU-accelerated embeddings (**RAG**)
-- 🤖 **Local LLMs** (Mistral, Llama, etc.) for entity extraction with relationship support (**KG**)
-- 📊 **Hybrid RAG+KG Query Engine** that combines vector search (**RAG**) with knowledge graph queries (**KG**)
-- 💬 **LLM-powered Answer Synthesis** for comprehensive, accurate responses
+- Python 3.10+
+- PostgreSQL 14+ with pgvector extension
+- CUDA-capable GPU (recommended for optimal performance)
 
-To use the SOTA features, use the `--advanced-query` flag when querying:
+### Setup
 
+1. Clone the repository:
 ```bash
-kb-agent query "What is the retention period for financial records?" --advanced-query
+git clone https://github.com/yourusername/DataGovAI.git
+cd DataGovAI
 ```
 
-## 🎯 Project Context: DataGovAI
+2. Create and activate a virtual environment:
+```bash
+python -m venv rag_env
+source rag_env/bin/activate  # On Windows: rag_env\Scripts\activate
+```
 
-This Knowledge Base Agent is being developed as part of the **DataGovAI** platform, a collaboration between Utah Valley University's Smith College of Engineering and Technology and the Utah Office of Data Privacy (ODP).
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-**Goal:** DataGovAI aims to support Utah governmental entities in achieving modern, legally compliant, and efficient data governance. It aligns with key Utah statutes like GRAMA, DARSMGR, GDPA, and GIIPA, and implements the state's Privacy Program Framework.
+4. Set up environment variables:
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
 
-**Functionality:** The system serves as an intelligent, centralized knowledge base consolidating Utah's legal requirements for data privacy, records management, and transparency. It helps automate compliance checks, streamline audits, and provides agencies quick access to relevant statutes and guidelines.
+5. Initialize the database:
+```bash
+python scripts/init_db.py
+```
 
-**Data Focus:** A primary data source for this knowledge base is the **Utah General Retention Schedules**. These schedules, maintained under DARSMGR, define how long different types of government records (Record Series) must be kept and their final disposition (e.g., destroy, transfer to archives). Processing these schedules allows DataGovAI to provide specific guidance on records management compliance.
+### Running the Application
+
+1. Start the Flask application:
+```bash
+python app/app.py
+```
+
+2. Open your browser and navigate to:
+```
+http://localhost:5000
+```
+
+## 💬 Usage
+
+The knowledge base agent provides an intuitive chat interface where you can:
+
+1. Ask questions about record retention requirements
+2. Get specific GRS document references
+3. Understand retention periods and disposition requirements
+4. Explore related documents and requirements
+
+Example questions:
+- "What is the retention period for financial records?"
+- "How long should we keep employee personnel files?"
+- "What are the disposition requirements for audit records?"
+
+## 📁 Project Structure
+
+```
+DataGovAI/
+├── app/                    # Main application directory
+│   ├── static/            # CSS, JavaScript, and other static files
+│   ├── templates/         # HTML templates
+│   └── app.py            # Flask application
+├── data/                  # Data storage directory
+│   └── processed/        # Processed document embeddings
+├── docs/                  # Documentation
+├── scripts/              # Utility scripts
+├── tests/                # Test suite
+├── .env.example          # Example environment configuration
+├── environment.yml       # Conda environment specification
+├── requirements.txt      # Python dependencies
+└── README.md            # This file
+```
+
+## 🔧 Configuration
+
+Key configuration options in `.env`:
+
+```ini
+# Database Configuration
+POSTGRES_CONNECTION=postgresql://user:password@localhost:5432/knowledge_base
+
+# Embedding Configuration
+EMBEDDING_MODEL=all-mpnet-base-v2
+EMBEDDING_DEVICE=cuda
+EMBEDDING_BATCH_SIZE=32
+
+# Application Configuration
+FLASK_ENV=development
+DEBUG=True
+```
 
 ## 📊 GRS Documents Analysis
 
