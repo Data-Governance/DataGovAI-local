@@ -1,4 +1,4 @@
-name: rag
+name: rag_env
 channels:
   - pytorch
   - nvidia
@@ -28,4 +28,3 @@ dependencies:
     - tiktoken>=0.9.0
     - plotly>=6.0.0
     - pymupdf>=1.25.0
-prefix: /home/majid/anaconda3/envs/rag

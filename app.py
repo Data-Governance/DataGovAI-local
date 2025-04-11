@@ -12,7 +12,7 @@ from psycopg2.extensions import register_adapter, AsIs
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 # Import pgvector numpy support
 from pgvector.psycopg2 import register_vector
 
@@ -38,61 +38,165 @@ if "last_processed_query" not in st.session_state:
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env file
-load_dotenv(verbose=True, override=True)
-logger.info(f"POSTGRES_CONNECTION from env AFTER load_dotenv: {os.getenv('POSTGRES_CONNECTION')}")
-# Removed hardcoded database connection override to use the .env setting
-logger.info(f"Using POSTGRES_CONNECTION: {os.getenv('POSTGRES_CONNECTION')}")
-
 # --- Configuration Loading & Caching ---
+
+# Function to check if running in Streamlit Cloud
+def is_streamlit_cloud() -> bool:
+    """Check if the app is running in Streamlit Cloud environment."""
+    # Check common environment variables set by Streamlit Cloud
+    return os.getenv("STREAMLIT_ENVIRONMENT") == "streamlit_cloud" or "STREAMLIT_SHARING_MODE" in os.environ
+
+# Load environment variables from .env file ONLY if not running in Streamlit Cloud
+if not is_streamlit_cloud():
+    # Use find_dotenv to locate the .env file reliably
+    dotenv_path = find_dotenv()
+    if dotenv_path:
+        logger.info(f"Loading .env file from: {dotenv_path}")
+        # Pass override=True to ensure .env variables take precedence over system env vars locally if needed
+        load_dotenv(dotenv_path=dotenv_path, verbose=True, override=True)
+    else:
+        logger.warning(".env file not found when running locally. Relying on environment variables or Streamlit secrets (if available)." )
+else:
+    logger.info("Running in Streamlit Cloud environment. Skipping .env file loading. Will rely on st.secrets or environment variables.")
 
 # Use Streamlit's caching for expensive operations like loading models or config
 @st.cache_resource # Cache resource across sessions
 def load_config_and_clients():
-    """Load configuration, initialize clients and models."""
-    # Cleaned up dictionary definition
+    """Load configuration, initialize clients and models, prioritizing Streamlit secrets."""
+    # Determine if running in Streamlit Cloud
+    running_on_cloud = is_streamlit_cloud()
+    logger.info(f"Running on Streamlit Cloud: {running_on_cloud}")
+
+    # Prioritize st.secrets if available (on Streamlit Cloud or if secrets.toml exists locally)
+    postgres_conn_secret = None
+    openai_key_secret = None
+    secret_source_used = False
+
+    # Try reading from st.secrets, handling the case where it doesn't exist locally
+    try:
+        if hasattr(st, 'secrets'):
+            # Attempt to get secrets only if the attribute exists
+            postgres_conn_secret = st.secrets.get("POSTGRES_CONNECTION")
+            openai_key_secret = st.secrets.get("OPENAI_API_KEY")
+
+            if postgres_conn_secret and openai_key_secret:
+                logger.info("Successfully loaded POSTGRES_CONNECTION and OPENAI_API_KEY from st.secrets.")
+                secret_source_used = True
+            elif hasattr(st, 'secrets'): # Check again inside try if keys were missing
+                 logger.warning("st.secrets found, but one or both required keys (POSTGRES_CONNECTION, OPENAI_API_KEY) are missing or empty within it.")
+        else:
+            # This case might not be strictly necessary if hasattr handles it, but safe to log
+            logger.info("st.secrets attribute not found. Relying on environment variables.")
+
+    except st.errors.StreamlitSecretNotFoundError:
+        # This is expected when running locally without a secrets.toml
+        logger.info("No local secrets.toml found or st.secrets unavailable. Will rely on environment variables.")
+        # Ensure secrets are None so fallback occurs correctly
+        postgres_conn_secret = None
+        openai_key_secret = None
+    except Exception as e:
+        # Catch other potential errors during secrets access
+        logger.error(f"Unexpected error accessing st.secrets: {e}", exc_info=True)
+        postgres_conn_secret = None
+        openai_key_secret = None
+
+    # --- Fallback and Final Check ---
+
+    # Use secrets if loaded successfully, otherwise fallback to environment variables
+    postgres_conn = postgres_conn_secret if secret_source_used else os.getenv("POSTGRES_CONNECTION")
+    openai_key = openai_key_secret if secret_source_used else os.getenv("OPENAI_API_KEY")
+
+    final_pg_source = "st.secrets" if secret_source_used else "environment variable"
+    final_openai_source = "st.secrets" if secret_source_used else "environment variable"
+
+    if not secret_source_used:
+        if postgres_conn:
+            logger.info(f"Using POSTGRES_CONNECTION from environment variable (fallback).")
+        if openai_key:
+            logger.info(f"Using OPENAI_API_KEY from environment variable (fallback).")
+
+    # Check if required secrets/variables are loaded *after* fallback attempt
+    if not postgres_conn or not openai_key:
+        missing_vars = []
+        if not postgres_conn: missing_vars.append("POSTGRES_CONNECTION")
+        if not openai_key: missing_vars.append("OPENAI_API_KEY")
+        
+        error_message = f"Missing required configuration(s): {', '.join(missing_vars)}. "
+        if running_on_cloud:
+            error_message += "Please ensure these are added as secrets in your Streamlit Cloud app settings."
+        else:
+            error_message += "Ensure they are set in your .env file or as environment variables for local execution."
+        st.error(error_message)
+        logger.error(error_message)
+        st.stop() # Stop execution if critical config is missing
+
+    # Load other configurations using os.getenv with defaults
     config = {
-        "postgres_connection": os.getenv("POSTGRES_CONNECTION"),
+        "postgres_connection": postgres_conn,
         "embedding_model": os.getenv("EMBEDDING_MODEL", "all-mpnet-base-v2"),
         "embedding_device": os.getenv("EMBEDDING_DEVICE", "cuda" if torch.cuda.is_available() else "cpu"),
-        "openai_api_key": os.getenv("OPENAI_API_KEY"),
+        "openai_api_key": openai_key,
         "openai_model": os.getenv("OPENAI_LLM_MODEL", "gpt-4o-mini")
     }
-    if not config["postgres_connection"] or not config["openai_api_key"]:
-        st.error("Missing required configuration in .env file (POSTGRES_CONNECTION, OPENAI_API_KEY)")
-        st.stop()
+
+    # Log the final source used for clarity
+    logger.info(f"Final POSTGRES_CONNECTION source: {final_pg_source}")
+    logger.info(f"Final OPENAI_API_KEY source: {final_openai_source}")
+    logger.info(f"Using Embedding Model: {config['embedding_model']}, Device: {config['embedding_device']}")
+    logger.info(f"Using OpenAI Model: {config['openai_model']}")
 
     try:
         logger.info(f"Loading embedding model: {config['embedding_model']}")
-        embedding_model = SentenceTransformer(config['embedding_model'], device=config['embedding_device'])
-        logger.info("Embedding model loaded.")
-        
+        # Ensure device is compatible
+        device = config['embedding_device']
+        if device == 'cuda' and not torch.cuda.is_available():
+            logger.warning("CUDA requested but not available. Falling back to CPU for embedding model.")
+            device = 'cpu'
+        elif device not in ['cuda', 'cpu']:
+             logger.warning(f"Invalid embedding device '{device}'. Falling back to CPU.")
+             device = 'cpu'
+
+        embedding_model = SentenceTransformer(config['embedding_model'], device=device)
+        logger.info(f"Embedding model loaded on device: {device}")
+
         logger.info(f"Initializing OpenAI client with model: {config['openai_model']}")
         openai_client = OpenAI(api_key=config['openai_api_key'])
         logger.info("OpenAI client initialized.")
 
         return config, embedding_model, openai_client
     except Exception as e:
-        st.error(f"Error initializing models or clients: {e}")
+        # Provide a more specific error message if model loading fails
+        error_msg = f"Error initializing models or clients: {e}. Check model names, API keys, and network connectivity."
+        st.error(error_msg)
         logger.error(f"Initialization Error: {e}", exc_info=True)
         st.stop()
 
 # Separate function for DB connection (not cached as resource, needs re-connecting)
 def get_db_connection(conn_string: str):
     """Establish database connection and register pgvector."""
+    if not conn_string:
+        st.error("Database connection string is missing.")
+        logger.error("Attempted to connect to DB with an empty connection string.")
+        st.stop()
     try:
         conn = psycopg2.connect(conn_string)
         register_vector(conn) # Register pgvector types for this connection
         logger.info("Database connection established and pgvector registered.")
-        
+
         # Verify and initialize database structure if needed
         verify_db_structure(conn)
-        
+
         return conn
-    except Exception as e:
-        logger.error(f"Failed to connect to database or register pgvector: {e}")
-        st.error(f"Database Connection Error: {e}")
+    except psycopg2.OperationalError as db_err:
+        # Handle specific DB connection errors more gracefully
+        logger.error(f"Database connection failed: {db_err}", exc_info=True)
+        st.error(f"Database Connection Error: Could not connect. Please check connection string and database status. Details: {db_err}")
         st.stop() # Stop execution if DB connection fails
+    except Exception as e:
+        # Catch other potential errors during connection or verification
+        logger.error(f"Failed during DB setup: {e}", exc_info=True)
+        st.error(f"Database Setup Error: {e}")
+        st.stop()
 
 def verify_db_structure(conn):
     """Verify that the database has the required tables and structure."""
@@ -476,7 +580,7 @@ st.set_page_config(
 )
 
 # Display logo in the sidebar
-st.sidebar.image("./logo.png", width=150) # Ensure logo path is correct
+st.sidebar.image("./logo.png", width=300) # Ensure logo path is correct
 
 # Custom CSS for better styling
 st.markdown("""
