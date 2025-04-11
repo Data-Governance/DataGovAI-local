@@ -4,40 +4,58 @@ channels:
   - nvidia
   - conda-forge
   - defaults
+
 dependencies:
-  # Core Python and CUDA
+  # Core Python
   - python=3.10
-  - pytorch
+  - pip
+
+  # Core ML/GPU 
+  - pytorch=2.0.1
   - torchvision
   - torchaudio
-  - pytorch-cuda=12.1
-  
-  # Scientific and ML dependencies
-  - numpy
-  - pandas
-  - scikit-learn
-  - psycopg2
+  - pytorch-cuda=11.8  # Older CUDA version for better compatibility
+  - numpy=1.24.3  # Pin to stable 1.x version
+
+  # Database
+  - psycopg2  # PostgreSQL database adapter
   
   # System utilities
-  - pip
+  - psutil
+
+  # pip-installed packages
   - pip:
-    # Transformers and embedding
-    - sentence-transformers>=4.0.0
-    - transformers>=4.35.0
-    - accelerate
-    - bitsandbytes
-    
-    # Document processing
-    - pymupdf>=1.23.0
-    
-    # UI and visualization
-    - streamlit>=1.27.0
-    - streamlit-chat>=0.1.1
-    - plotly>=5.16.0
-    
-    # Database and vector storage
-    - pgvector>=0.2.0
-    
-    # Configuration and API
-    - python-dotenv>=1.0.0
-    - openai>=1.0.0 
+      # Core Libraries
+      - openai>=1.0.0
+      - python-dotenv>=1.0.0
+      - pydantic>=2.0.0
+
+      # Embeddings and Transformers
+      - sentence-transformers>=4.0.0
+      - transformers>=4.35.0  # Removed upper bound <4.36.0
+      - tiktoken>=0.3.0
+      
+      # Vector Database
+      - pgvector>=0.2.0
+            
+      # Document Processing
+      - pymupdf>=1.23.0
+      - nltk
+      - spacy>=3.0.0
+      
+      # DSPy Framework
+      - dspy-ai>=2.6.17
+
+      # UI
+      - streamlit>=1.24.0,<1.30.0  # Avoid newest versions with numpy 2.x dependency
+      - streamlit-chat>=0.1.1
+      - plotly>=5.16.0
+      
+      # Performance optimization
+      - accelerate
+      - bitsandbytes
+      
+      # Utilities
+      - "numpy==1.24.3"  # Pin NumPy to a compatible version
+      - "pandas<2.1.0"  # Use a version compatible with numpy 1.x
+      - tenacity  # For retrying API calls 
