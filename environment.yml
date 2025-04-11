@@ -1,20 +1,15 @@
-name: rag_env
+name: rag
 channels:
-  - pytorch
-  - nvidia
   - conda-forge
   - defaults
+  - pytorch
 
 dependencies:
   # Core Python
   - python=3.10
   - pip
 
-  # Core ML/GPU 
-  - pytorch=2.0.1
-  - torchvision
-  - torchaudio
-  - pytorch-cuda=11.8  # Older CUDA version for better compatibility
+  # Core ML
   - numpy=1.24.3  # Pin to stable 1.x version
 
   # Database
@@ -32,7 +27,7 @@ dependencies:
 
       # Embeddings and Transformers
       - sentence-transformers>=4.0.0
-      - transformers>=4.35.0  # Removed upper bound <4.36.0
+      - transformers>=4.35.0
       - tiktoken>=0.3.0
       
       # Vector Database
@@ -46,11 +41,11 @@ dependencies:
       # DSPy Framework
       - dspy-ai>=2.6.17
 
-      # UI
-      - streamlit>=1.24.0,<1.30.0  # Avoid newest versions with numpy 2.x dependency
+      # UI - Upgraded Streamlit
+      - streamlit>=1.30.0
       - streamlit-chat>=0.1.1
       - plotly>=5.16.0
-      
+            
       # Performance optimization
       - accelerate
       - bitsandbytes
