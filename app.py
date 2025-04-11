@@ -39,8 +39,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
-load_dotenv(verbose=True)
-logger.info(f"POSTGRES_CONNECTION from env: {os.getenv('POSTGRES_CONNECTION')}")
+load_dotenv(verbose=True, override=True)
+logger.info(f"POSTGRES_CONNECTION from env AFTER load_dotenv: {os.getenv('POSTGRES_CONNECTION')}")
 # Removed hardcoded database connection override to use the .env setting
 logger.info(f"Using POSTGRES_CONNECTION: {os.getenv('POSTGRES_CONNECTION')}")
 
@@ -706,6 +706,8 @@ if st.session_state.conversation_history and st.session_state.conversation_histo
         st.session_state.query_to_process = "Explain the previous answer in simpler terms."
         # Ensure we are in conversation mode for this type of follow-up
         st.session_state.conversation_mode = True 
+        # Set a flag to indicate this is an explicit follow-up request
+        st.session_state.explicit_follow_up_request = True # Add this flag
         # Trigger a rerun to process the explanation query
         st.rerun() 
 
@@ -779,21 +781,45 @@ try:
         st.session_state.conversation_history.append({"role": "user", "content": query})
 
         # --- Determine Query Type and Process ---
-        # **MODIFIED LOGIC**: Prioritize conversation_mode for follow-ups
-        if st.session_state.conversation_mode and st.session_state.last_context_and_sources["context"]:
-             # --- Follow-up Query in Conversation Mode (GRS or General) ---
-            logger.info("Handling follow-up query in conversation mode.")
-            with st.spinner("Generating follow-up response..."): # <-- ADDED SPINNER
+        # **REVISED LOGIC V3**: Differentiate explicit follow-ups, implicit non-GRS follow-ups, and new GRS queries.
+        
+        # Check for explicit follow-up request first (e.g., Explain button)
+        is_explicit_follow_up = st.session_state.get("explicit_follow_up_request", False)
+        st.session_state.explicit_follow_up_request = False # Reset flag immediately after checking
+
+        # Determine if the current query looks like a new GRS search
+        is_new_grs_candidate = is_grs_related(query)
+
+        # Determine if we are in conversation mode with existing context
+        in_conversation_with_context = st.session_state.conversation_mode and st.session_state.last_context_and_sources["context"]
+
+        # Define the conditions more carefully
+        # Condition 1: Handle as follow-up (explicit request OR implicit non-GRS query)
+        should_handle_as_follow_up = is_explicit_follow_up or \
+                                    (in_conversation_with_context and not is_new_grs_candidate)
+        
+        # Condition 2: Handle as NEW GRS search (not a follow-up AND looks like GRS)
+        should_handle_as_new_grs = not should_handle_as_follow_up and is_new_grs_candidate
+
+        # Condition 3: Handle as NEW General query (not a follow-up AND not GRS)
+        should_handle_as_new_general = not should_handle_as_follow_up and not is_new_grs_candidate
+
+        if should_handle_as_follow_up:
+             # --- Follow-up Query (Explicit or Implicit Non-GRS) ---
+            logger.info("Handling as follow-up query (explicit or implicit non-GRS).")
+            with st.spinner("Generating follow-up response..."): 
                 last_context = st.session_state.last_context_and_sources["context"]
                 answer = generate_follow_up_response(
                     openai_client, config["openai_model"], query, st.session_state.conversation_history[:-1], last_context
                 )
+            # Keep conversation_mode = True
 
-        elif is_grs_related(query):
+        elif should_handle_as_new_grs:
              # --- RAG Process for New GRS Query ---
-            logger.info("GRS-related query detected. Performing RAG retrieval.")
-            # Ensure conversation mode is OFF for a new RAG search if it wasn't explicitly turned on
+            logger.info("Handling as NEW GRS query (performing RAG).")
+            # Reset conversation mode and context for a new search
             st.session_state.conversation_mode = False 
+            st.session_state.last_context_and_sources = {"context": "", "sources": []} 
             conn = None # Initialize conn
             try:
                 # Get DB connection inside the processing block
@@ -850,12 +876,12 @@ try:
                      conn.close()
                      logger.info("Database connection closed for query.")
 
-        else:
-            # --- General Question (Non-GRS, New Search) ---
-            logger.info("Handling general non-GRS query.")
-            # Ensure conversation mode is OFF
+        elif should_handle_as_new_general:
+            # --- General Question (New Search) ---
+            logger.info("Handling as NEW General query.")
+            # Reset conversation mode and context
             st.session_state.conversation_mode = False 
-            st.session_state.last_context_and_sources = {"context": "", "sources": []} # Clear context
+            st.session_state.last_context_and_sources = {"context": "", "sources": []}
             try:
                 # Simple call to OpenAI for general questions
                 with st.spinner("Generating general response..."): # <-- ADDED SPINNER
@@ -869,6 +895,12 @@ try:
                 logger.error(f"Error calling OpenAI for general query: {e}")
                 st.error(f"An error occurred while processing your general query: {e}")
                 answer = "Sorry, I encountered an error trying to answer your general question."
+        else:
+             # Fallback case
+             logger.warning("Query did not match any processing category. Defaulting to general response.")
+             answer = "I'm not sure how to handle that request in the current context. Could you try rephrasing or starting a new search?"
+             st.session_state.conversation_mode = False
+             st.session_state.last_context_and_sources = {"context": "", "sources": []}
 
         # Add assistant response to history
         st.session_state.conversation_history.append({"role": "assistant", "content": answer})
