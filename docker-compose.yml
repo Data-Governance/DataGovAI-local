@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  db:
+    image: ankane/pgvector:postgres14
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: datagov_user
+      POSTGRES_PASSWORD: datagov_pass
+      POSTGRES_DB: datagov
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+    env_file:
+      - .env
+    ports:
+      - "8505:8505"
+    command: ["micromamba", "run", "-n", "rag", "--no-capture-output", "python", "app_launcher.py"]
+
+volumes:
+  db_data:
+    name: datagov_db_data 
