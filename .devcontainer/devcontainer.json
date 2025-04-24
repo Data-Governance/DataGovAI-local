@@ -1,33 +1,22 @@
 {
-  "name": "Python 3",
-  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-  // Using Docker Compose for a multi-container setup with PostgreSQL
+  "name": "DataGovAI Codespace",
   "dockerComposeFile": "../docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspaces/DataGovAI",
+  "shutdownAction": "stopCompose",
   "customizations": {
     "codespaces": {
-      "openFiles": [
-        "README.md",
-        "app.py"
-      ]
+      "openFiles": ["README.md", "app.py"]
     },
     "vscode": {
-      "settings": {},
-      "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance"
-      ]
+      "extensions": ["ms-python.python", "ms-python.vscode-pylance"]
     }
   },
-  // Using Docker Compose for the environment setup, so these are not needed anymore
-  // "updateContentCommand": "[ -f environment.yml ] && mamba env update -f /workspaces/DataGovAI/environment.yml || mamba env create -f /workspaces/DataGovAI/environment.yml && echo '✅ Conda environment setup complete'",
   "features": {
     "ghcr.io/devcontainers/features/mamba:1": {
       "installPrompt": false
     }
   },
-  // "postCreateCommand": "mamba env update -f /workspaces/DataGovAI/environment.yml || mamba env create -f /workspaces/DataGovAI/environment.yml",
   "postAttachCommand": {
     "server": "streamlit run app.py --server.enableCORS false --server.enableXsrfProtection false"
   },
@@ -39,10 +28,11 @@
     "8505": {
       "label": "RAG API",
       "onAutoForward": "openPreview"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "notify"
     }
   },
-  "forwardPorts": [
-    8501,
-    8505
-  ]
+  "forwardPorts": [8501, 8505, 5432]
 }
