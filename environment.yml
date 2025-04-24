@@ -1,4 +1,4 @@
-name: rag_env
+name: rag
 channels:
   - pytorch
   - nvidia
@@ -30,3 +30,4 @@ dependencies:
     - pydantic==2.11.3
     - plotly>=6.0.0
     - pymupdf>=1.25.0
+    - nest_asyncio>=1.6.0

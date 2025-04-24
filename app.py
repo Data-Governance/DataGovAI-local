@@ -156,7 +156,37 @@ def load_config_and_clients():
              logger.warning(f"Invalid embedding device '{device}'. Falling back to CPU.")
              device = 'cpu'
 
-        embedding_model = SentenceTransformer(config['embedding_model'], device=device)
+        # --- NEW: Support for private Hugging Face models requiring auth token ---
+        hf_token = os.getenv("HF_TOKEN") or os.getenv("HF_API_KEY") or os.getenv("HUGGINGFACE_HUB_TOKEN")
+
+        if hf_token:
+            logger.info("Using Hugging Face authentication token for model download.")
+        else:
+            logger.info("No Hugging Face auth token found; attempting anonymous download.")
+
+        try:
+            embedding_model = SentenceTransformer(
+                config['embedding_model'],
+                device=device,
+                token=hf_token if hf_token else None  # ST>=4.1 prefers `token`
+            )
+        except Exception as hub_err:
+            # If credentials are invalid, retry anonymously for public models
+            if (
+                hf_token
+                and ("401" in str(hub_err) or "Unauthorized" in str(hub_err))
+            ):
+                logger.warning(
+                    "Received 401 Unauthorized from Hugging Face while using provided token. "
+                    "Retrying download without token to allow public access."
+                )
+                embedding_model = SentenceTransformer(
+                    config['embedding_model'],
+                    device=device,
+                    token=None,
+                )
+            else:
+                raise
         logger.info(f"Embedding model loaded on device: {device}")
 
         logger.info(f"Initializing OpenAI client with model: {config['openai_model']}")
