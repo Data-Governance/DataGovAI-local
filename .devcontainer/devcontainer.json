@@ -4,7 +4,7 @@
   // Using Docker Compose for a multi-container setup with PostgreSQL
   "dockerComposeFile": "../docker-compose.yml",
   "service": "app",
-  "workspaceFolder": "/app",
+  "workspaceFolder": "/workspaces/DataGovAI",
   "customizations": {
     "codespaces": {
       "openFiles": [
@@ -35,9 +35,14 @@
     "8501": {
       "label": "Application",
       "onAutoForward": "openPreview"
+    },
+    "8505": {
+      "label": "RAG API",
+      "onAutoForward": "openPreview"
     }
   },
   "forwardPorts": [
-    8501
+    8501,
+    8505
   ]
 }
