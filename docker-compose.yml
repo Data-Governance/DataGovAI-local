@@ -18,6 +18,8 @@ services:
       - db
     env_file:
       - .env
+    volumes:
+      - .:/workspaces/DataGovAI
     ports:
       - "8505:8505"
     command: ["micromamba", "run", "-n", "rag", "--no-capture-output", "python", "app_launcher.py"]

@@ -2,7 +2,7 @@
 FROM mambaorg/micromamba:1.5.0
 
 # Set working directory
-WORKDIR /app
+WORKDIR /workspaces/DataGovAI
 
 # Copy environment definition and install packages
 COPY environment.yml ./
@@ -16,4 +16,4 @@ COPY . ./
 EXPOSE 8505
 
 # Launch the application using the launcher script
-CMD ["micromamba", "run", "-n", "rag", "--no-capture-output", "python", "app_launcher.py"] 
+CMD ["micromamba", "run", "-n", "rag", "--no-capture-output", "python", "app_launcher.py"]
