@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="./logo.png" alt="DataGovAI Logo" style="width: 100%; max-width: 800px;"/>
-</p>
-
 # DataGovAI — Utah GRS knowledge assistant
 
 DataGovAI is a chat app for **Utah General Retention Schedules (GRS)**. A records officer asks a question in plain language (retention period, disposition, which series applies). The app searches ingested GRS PDFs, then streams an answer that must cite series ids such as `[GRS-19374]`.
@@ -262,5 +258,7 @@ Answers should name a series in brackets and match the ingested PDF (e.g. person
 ---
 
 ## License
+
+Copyright © 2026 Utah Office of Data Privacy (ODP). All Rights Reserved.
 
 This software is proprietary and confidential to the Utah Office of Data Privacy. Unauthorized copying, modification, distribution, or use is prohibited.

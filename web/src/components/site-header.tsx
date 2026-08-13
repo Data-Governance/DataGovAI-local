@@ -12,6 +12,9 @@ export function SiteHeader() {
         <div className="min-w-0">
           <h1 className="text-lg font-semibold">DataGovAI</h1>
           <p className="text-xs text-teal-100">Utah GRS knowledge assistant</p>
+          <p className="mt-0.5 text-[10px] text-teal-200/80">
+            Copyright © 2026 Utah Office of Data Privacy
+          </p>
         </div>
         {status === "loading" ? (
           <span className="text-xs text-teal-100">…</span>

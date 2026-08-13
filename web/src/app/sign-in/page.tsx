@@ -75,6 +75,9 @@ export default function SignInPage() {
           Back to chat
         </a>
       </p>
+      <p className="mt-8 text-center text-xs text-zinc-400">
+        Copyright © 2026 Utah Office of Data Privacy (ODP). All Rights Reserved.
+      </p>
     </main>
   );
 }
