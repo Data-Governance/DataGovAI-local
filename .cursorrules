@@ -1,0 +1,28 @@
+# Scratchpad
+
+## Current Task
+Repo cleanup after GRS RAG launch. Keep `web/` as the product; one plan at `docs/development/plan.md`.
+
+## Plan
+[X] Remove Streamlit / Python KB / duplicate docs
+[X] Fix gitignore so `web/src/lib` is tracked
+[X] Rewrite README + plan
+[ ] Commit and push
+
+## Notes
+- Live: https://datagovai-web.vercel.app
+- Ingested GRS-19374, GRS-19375, GRS-11284 (plus earlier sample series)
+- Citation chips: only series ids named in the answer
+
+## Lessons
+- Prefer simpler Vercel-style chatbot patterns when user points to a working reference.
+- Do not copy CareWise domain logic; reuse only RAG plumbing ideas and existing Vercel/Neon credentials.
+- CareWise Neon org is Vercel-managed — create a new *database* on the existing project rather than a new Neon project.
+- AI SDK v6 `toUIMessageStreamResponse` `onFinish` has `messages`, not `text`.
+- `process.env.VERCEL_OIDC_TOKEN` is NOT auto-injected into a deployed Vercel function's `process.env`.
+- Use the `ai` package's own `embed`/`embedMany`/`rerank` with gateway model strings.
+- Gateway rerank model id is `voyage/rerank-2.5`.
+- Production chat requires a visible Sign in path; a raw 401 looks like the app is broken.
+- Starter prompts must match ingested GRS PDFs or retrieval returns the wrong series.
+- `vercel deploy --prod --yes` can hang after upload even when the deployment actually succeeds.
+- Root `.gitignore` must not use a global `lib/` rule — it hides `web/src/lib` from git.

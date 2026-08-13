@@ -1,79 +1,36 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual Environment
-venv/
-ENV/
-env/
-.env
-# RAG environments
-rag_core_env/
-rag_ui_env/
-chatbot/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-.cursor/
-
-# Testing
-.coverage
-htmlcov/
-.tox/
-.pytest_cache/
-.hypothesis/
-
-# Logs
-*.log
-logs/
-log/
-
-# Local development
-.DS_Store
-.env.local
-volumes/
-data/
-
-# Documentation
-docs/_build/
-
-# Database
-*.db
-*.sqlite3
-
-# Environment variables
+# Secrets
 .env
 .env.*
 !.env.example
+!**/.env.example
 
-# Node modules (for frontend)
+# Local GRS PDFs and indexes (too large for git)
+data/
+
+# Python leftovers
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# Node / Next
 node_modules/
+web/.next/
+web/out/
+*.tsbuildinfo
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# Vercel
+web/.vercel/
 
-# CUDA profiling files
-*.nsys-rep
-*.nvprof
-*.nvvp 
+# IDE / OS
+.idea/
+.vscode/
+.cursor/
+.DS_Store
+*.swp
+
+# Logs and caches
+*.log
+logs/
+coverage/
+htmlcov/
