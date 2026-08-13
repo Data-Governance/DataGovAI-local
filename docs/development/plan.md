@@ -6,6 +6,8 @@
 
 A Utah GRS chatbot that answers only from ingested PDFs, with series citations. Stack: Next.js + AI SDK + Neon/pgvector + Voyage via Vercel AI Gateway. Domain is DataGovAI only.
 
+**How the app works (ingest, retrieve, generate, auth):** see the root [`README.md`](../../README.md).
+
 ## Architecture
 
 ```
