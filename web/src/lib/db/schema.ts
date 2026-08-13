@@ -1,7 +1,4 @@
-/**
- * DataGovAI schema — Auth.js + GRS RAG chunks + chat history.
- * Isolated Neon database `datagovai` (not the CareWise corpus).
- */
+/** Auth.js tables, GRS document chunks, and optional chat history. */
 import {
   index,
   integer,

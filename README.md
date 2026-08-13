@@ -12,7 +12,7 @@ Copyright © 2026 Utah Office of Data Privacy (ODP). All Rights Reserved.
 Collaboration: Utah Valley University, Smith College of Engineering and Technology.
 
 **Live:** https://datagovai-web.vercel.app  
-Production chat requires sign-in (`admin@datagovai.local` after `npm run seed:admin`).  
+Production chat requires sign-in (create the admin with `ADMIN_SEED_PASSWORD` and `npm run seed:admin`).  
 Development plan: [`docs/development/plan.md`](docs/development/plan.md). App code: [`web/`](web/).
 
 ---
@@ -100,7 +100,7 @@ Auth.js (NextAuth v5) credentials + JWT ([`web/src/auth.ts`](web/src/auth.ts)).
 | Environment | Who can chat |
 |-------------|--------------|
 | `next dev` | Anyone; optional shortcut `admin` / `admin` |
-| Production | Seeded user only (`npm run seed:admin` → `admin@datagovai.local`) |
+| Production | Seeded user only (`npm run seed:admin`) |
 
 Passwords are bcrypt hashes on the `user` table. `AUTH_SECRET` signs the JWT. `AUTH_URL` is the public origin (production: `https://datagovai-web.vercel.app`).
 
@@ -108,7 +108,7 @@ Passwords are bcrypt hashes on the `user` table. `AUTH_SECRET` signs the JWT. `A
 
 ## Data stored in Neon
 
-Dedicated database **`datagovai`** (isolated from other apps). Schema: [`web/src/lib/db/schema.ts`](web/src/lib/db/schema.ts).
+Postgres database **`datagovai`**. Schema: [`web/src/lib/db/schema.ts`](web/src/lib/db/schema.ts).
 
 | Table | Role |
 |-------|------|
@@ -188,6 +188,7 @@ Open the URL Next prints (often http://localhost:3000). Local sign-in shortcut: 
 | `AUTH_URL` | App origin (`http://localhost:3000` locally) |
 | `ENABLE_DEV_LOGIN` | Local `admin`/`admin` shortcut (ignored in production) |
 | `ADMIN_EMAILS` | Admin email list |
+| `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` | Used by `npm run seed:admin` (password required; not committed) |
 | `VERCEL_OIDC_TOKEN` / `AI_GATEWAY_API_KEY` | Local Gateway auth only |
 
 Never commit `.env.local`.
@@ -206,9 +207,7 @@ vercel deploy --prod --yes
 
 Set `AUTH_URL=https://datagovai-web.vercel.app` on Vercel. Do not push Gateway tokens.
 
-`vercel deploy --prod --yes` sometimes hangs after upload while the deployment still succeeds — check the [Vercel dashboard](https://vercel.com/) if the CLI stalls.
-
-Ingest against the **same** `DATABASE_URL` production uses, or production will search an empty/wrong corpus.
+Ingest against the **same** `DATABASE_URL` production uses, or production will search an empty corpus.
 
 ---
 

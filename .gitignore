@@ -22,10 +22,11 @@ web/out/
 # Vercel
 web/.vercel/
 
-# IDE / OS
+# IDE / OS / editor agent notes (not part of the product)
 .idea/
 .vscode/
 .cursor/
+.cursorrules
 .DS_Store
 *.swp
 

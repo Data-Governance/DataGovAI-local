@@ -1,13 +1,9 @@
 #!/bin/bash
-# Push web/.env.local values to Vercel (production, preview, development).
-# Skips VERCEL_OIDC_TOKEN (Vercel injects this automatically per-project at
-# runtime) and AUTH_URL (set separately once the production domain is known).
-# Never echoes secret values.
+# Push web/.env.local keys to Vercel production and development.
+# Skips VERCEL_OIDC_TOKEN (platform-provided) and AUTH_URL (set on the project).
+# Does not print secret values.
 set -euo pipefail
 
-# Preview env vars are scoped by git branch on Vercel; this project has no
-# connected git repo, so preview is skipped (CLI-based deploys use
-# production/development scoping only).
 ENV_FILE=".env.local"
 ENVIRONMENTS=(production development)
 SKIP_KEYS=("VERCEL_OIDC_TOKEN" "AUTH_URL")

@@ -1,12 +1,12 @@
 # DataGovAI GRS RAG
 
-**Status:** Active — this is the single development plan.
+**Status:** Active.
 
 ## Goal
 
-A Utah GRS chatbot that answers only from ingested PDFs, with series citations. Stack: Next.js + AI SDK + Neon/pgvector + Voyage via Vercel AI Gateway. Domain is DataGovAI only.
+A Utah GRS chatbot that answers only from ingested PDFs, with series citations. Stack: Next.js + AI SDK + Neon/pgvector + Voyage via Vercel AI Gateway.
 
-**How the app works (ingest, retrieve, generate, auth):** see the root [`README.md`](../../README.md).
+**How the app works:** see the root [`README.md`](../../README.md).
 
 ## Architecture
 
@@ -32,7 +32,7 @@ App root: `web/`.
 - `document_chunks`: `sourceId`, `title`, `content`, embedding
 - `conversations`, `messages`
 
-Dedicated Neon database `datagovai` (not mixed with other apps’ corpora).
+Dedicated Neon database `datagovai`.
 
 ## Run
 
@@ -49,7 +49,7 @@ Preferred ingest set includes council minutes, audits, personnel files (GRS-1937
 
 ## Deployment
 
-Live: **https://datagovai-web.vercel.app** (project `datagovai-web`).
+Live: **https://datagovai-web.vercel.app** (Vercel project `datagovai-web`).
 
 ```bash
 cd web
@@ -58,14 +58,3 @@ vercel deploy --prod --yes
 ```
 
 Production env: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `ENABLE_DEV_LOGIN`, `ADMIN_EMAILS`. Do not push `VERCEL_OIDC_TOKEN` / `AI_GATEWAY_API_KEY` — Gateway auth is automatic on Vercel.
-
-`vercel deploy --prod --yes` may hang after upload even when the deployment succeeds; check the Vercel dashboard if the CLI stalls.
-
-## Done
-
-- Chat UI and production deploy
-- Sample GRS corpus matching starter prompts
-- Grounded answers with GRS citations (local + production)
-- Production sign-in required; homepage Sign in / Sign out (no raw 401)
-- Citation chips limited to series ids in the answer
-- `npm run build` succeeds
