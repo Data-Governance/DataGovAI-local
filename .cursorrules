@@ -7,7 +7,7 @@ Repo cleanup after GRS RAG launch. Keep `web/` as the product; one plan at `docs
 [X] Remove Streamlit / Python KB / duplicate docs
 [X] Fix gitignore so `web/src/lib` is tracked
 [X] Rewrite README + plan
-[ ] Commit and push
+[X] Commit and push
 
 ## Notes
 - Live: https://datagovai-web.vercel.app
