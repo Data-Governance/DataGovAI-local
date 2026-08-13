@@ -1,6 +1,10 @@
 # DataGovAI web
 
-Implementation of the GRS chatbot. How the system works, architecture, and operations: **[root README](../README.md)**. Plan: [`docs/development/plan.md`](../docs/development/plan.md).
+Implementation of the GRS chatbot.
+
+- How it works: **[root README](../README.md)**
+- **Login and test:** [root README — Login and test](../README.md#login-and-test)
+- Plan: [`docs/development/plan.md`](../docs/development/plan.md)
 
 ```bash
 cd web

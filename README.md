@@ -12,8 +12,47 @@ Copyright © 2026 Utah Office of Data Privacy (ODP). All Rights Reserved.
 Collaboration: Utah Valley University, Smith College of Engineering and Technology.
 
 **Live:** https://datagovai-web.vercel.app  
-Production chat requires sign-in (create the admin with `ADMIN_SEED_PASSWORD` and `npm run seed:admin`).  
 Development plan: [`docs/development/plan.md`](docs/development/plan.md). App code: [`web/`](web/).
+
+---
+
+## Login and test
+
+### Production (shared demo)
+
+1. Open **https://datagovai-web.vercel.app**
+2. Click **Sign in** (or go to `/sign-in`).
+3. Use the seeded admin account:
+   - **Email:** `admin@datagovai.local`
+   - **Password:** the `ADMIN_SEED_PASSWORD` used when someone last ran `npm run seed:admin` (not stored in this repo — ask the operator who deployed).
+4. You should land on the chat home with **Sign out** in the header.
+5. Click a starter question or type your own. A good answer cites a series in brackets (for example `[GRS-11284]`) and shows matching chips under the message.
+6. Click **Sign out** when finished. Without a session, production will not answer — you should see a sign-in prompt, not a broken error page.
+
+| Starter | What to check |
+|---------|----------------|
+| Retention period for council minutes | Cites **GRS-19978** |
+| Employee personnel files | Cites **GRS-19374** and/or **GRS-19375** |
+| Disposition for audit records | Cites **GRS-28265** and/or **GRS-7695** |
+| Retention schedule for legal case files | Cites **GRS-11284** |
+
+Answers are grounded in ingested PDFs only. If a record type was never ingested, the assistant should say it could not find a matching schedule rather than invent a retention period.
+
+### Local
+
+```bash
+cd web
+cp .env.example .env.local   # set DATABASE_URL, AUTH_SECRET, Gateway auth, ADMIN_SEED_PASSWORD
+npm install
+npm run db:push
+npm run ingest -- --limit 20
+npm run seed:admin
+npm run dev
+```
+
+- Chat works **without** signing in during `next dev`.
+- Optional shortcut on `/sign-in`: **`admin` / `admin`**.
+- Retrieval-only check: `npm run smoke` (add `--generate` to also call the LLM).
 
 ---
 
