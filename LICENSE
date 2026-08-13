@@ -1,0 +1,40 @@
+Copyright © 2026 Utah Office of Data Privacy (ODP). All Rights Reserved.
+
+PROPRIETARY AND CONFIDENTIAL
+
+This repository, including all source code, documentation, configuration,
+scripts, data schemas, prompts, and other materials (the "Software"), is the
+exclusive property of the Utah Office of Data Privacy.
+
+NO LICENSE IS GRANTED except as ODP may give in a separate written agreement
+signed by an authorized ODP official.
+
+Without that written agreement you may not, in whole or in part:
+
+  1. Copy, reproduce, or create derivative works of the Software.
+  2. Modify, adapt, translate, reverse engineer, decompile, or disassemble
+     the Software.
+  3. Distribute, publish, sublicense, sell, rent, lease, or otherwise transfer
+     the Software to any third party.
+  4. Use the Software for any commercial purpose or for any purpose other than
+     evaluation that ODP has expressly authorized.
+  5. Remove, alter, or obscure any copyright, confidentiality, or proprietary
+     notice.
+  6. Use ODP names, marks, or logos except as required to identify the source
+     of the Software.
+
+Access to this repository does not waive confidentiality. You must not disclose
+the Software or non-public information about it except to people ODP has
+authorized, and only as needed for that authorized work.
+
+Any use not expressly permitted in writing by ODP is prohibited and may violate
+copyright, trade secret, and other applicable law of the State of Utah and the
+United States.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL ODP,
+THE STATE OF UTAH, OR THEIR OFFICERS, EMPLOYEES, OR AGENTS BE LIABLE FOR ANY
+CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+To request permission, contact the Utah Office of Data Privacy.

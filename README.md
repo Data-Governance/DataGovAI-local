@@ -5,7 +5,7 @@ DataGovAI is a chat app for **Utah General Retention Schedules (GRS)**. A record
 It is **not legal advice**. Official confirmation still comes from [Utah State Archives](https://archives.utah.gov/).
 
 Copyright © 2026 Utah Office of Data Privacy (ODP). All Rights Reserved.  
-Collaboration: Utah Valley University, Smith College of Engineering and Technology.
+See [`LICENSE`](LICENSE). Collaboration: Utah Valley University, Smith College of Engineering and Technology.
 
 **Live:** https://datagovai-web.vercel.app  
 Development plan: [`docs/development/plan.md`](docs/development/plan.md). App code: [`web/`](web/).
@@ -259,6 +259,8 @@ Answers should name a series in brackets and match the ingested PDF (e.g. person
 
 ## License
 
-Copyright © 2026 Utah Office of Data Privacy (ODP). All Rights Reserved.
+**Proprietary. All rights reserved.** See [`LICENSE`](LICENSE).
 
-This software is proprietary and confidential to the Utah Office of Data Privacy. Unauthorized copying, modification, distribution, or use is prohibited.
+Copyright © 2026 Utah Office of Data Privacy (ODP). No license to copy, modify,
+distribute, or use this software is granted except by a separate written
+agreement from ODP. Access to the repository is not a grant of rights.
