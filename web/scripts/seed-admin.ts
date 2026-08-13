@@ -12,11 +12,7 @@ async function main() {
   const email = (process.env.ADMIN_SEED_EMAIL ?? "admin@datagovai.local")
     .trim()
     .toLowerCase();
-  const password = process.env.ADMIN_SEED_PASSWORD;
-  if (!password) {
-    console.error("Set ADMIN_SEED_PASSWORD in web/.env.local before seeding.");
-    process.exit(1);
-  }
+  const password = process.env.ADMIN_SEED_PASSWORD ?? "grsdemo";
   const passwordHash = await bcrypt.hash(password, 12);
 
   const [existing] = await db
@@ -41,7 +37,7 @@ async function main() {
     });
     console.log(`Created admin: ${email}`);
   }
-  console.log(`Sign in at /sign-in as ${email}`);
+  console.log(`Sign in at /sign-in as ${email} (demo password: grsdemo unless ADMIN_SEED_PASSWORD is set)`);
 }
 
 main().catch((e) => {

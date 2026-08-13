@@ -22,9 +22,9 @@ Development plan: [`docs/development/plan.md`](docs/development/plan.md). App co
 
 1. Open **https://datagovai-web.vercel.app**
 2. Click **Sign in** (or go to `/sign-in`).
-3. Use the seeded admin account:
+3. Sign in with the **demo** account (shared for ODP testing):
    - **Email:** `admin@datagovai.local`
-   - **Password:** the `ADMIN_SEED_PASSWORD` used when someone last ran `npm run seed:admin` (not stored in this repo — ask the operator who deployed).
+   - **Password:** `grsdemo`
 4. You should land on the chat home with **Sign out** in the header.
 5. Click a starter question or type your own. A good answer cites a series in brackets (for example `[GRS-11284]`) and shows matching chips under the message.
 6. Click **Sign out** when finished. Without a session, production will not answer — you should see a sign-in prompt, not a broken error page.
@@ -42,7 +42,7 @@ Answers are grounded in ingested PDFs only. If a record type was never ingested,
 
 ```bash
 cd web
-cp .env.example .env.local   # set DATABASE_URL, AUTH_SECRET, Gateway auth, ADMIN_SEED_PASSWORD
+cp .env.example .env.local   # set DATABASE_URL, AUTH_SECRET, Gateway auth
 npm install
 npm run db:push
 npm run ingest -- --limit 20
@@ -227,7 +227,7 @@ Open the URL Next prints (often http://localhost:3000). Local sign-in shortcut: 
 | `AUTH_URL` | App origin (`http://localhost:3000` locally) |
 | `ENABLE_DEV_LOGIN` | Local `admin`/`admin` shortcut (ignored in production) |
 | `ADMIN_EMAILS` | Admin email list |
-| `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` | Used by `npm run seed:admin` (password required; not committed) |
+| `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` | Optional overrides for `npm run seed:admin` (defaults: `admin@datagovai.local` / `grsdemo`) |
 | `VERCEL_OIDC_TOKEN` / `AI_GATEWAY_API_KEY` | Local Gateway auth only |
 
 Never commit `.env.local`.
