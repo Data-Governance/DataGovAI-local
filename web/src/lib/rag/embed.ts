@@ -1,11 +1,16 @@
 import { embed, embedMany } from "ai";
 
+import { bedrock } from "@/lib/ai/model";
+
 /**
- * Voyage embeddings via Vercel AI Gateway. Plain "provider/model" strings
- * route through the Gateway using the same automatic runtime auth as
- * streamText — no manual OIDC/API-key handling needed.
+ * Titan embeddings via AWS Bedrock. titan-embed-text-v2 outputs 1024
+ * dimensions by default, matching the vector(1024) column on
+ * document_chunks. Changing the embedding model requires re-ingesting
+ * every document — embedding spaces don't mix.
  */
-const EMBEDDING_MODEL = "voyage/voyage-3-large";
+const EMBEDDING_MODEL = bedrock.embedding(
+  process.env.BEDROCK_EMBEDDING_MODEL_ID ?? "amazon.titan-embed-text-v2:0",
+);
 
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];

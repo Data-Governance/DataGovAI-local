@@ -38,7 +38,7 @@ Answers are grounded in ingested PDFs only. If a record type was never ingested,
 
 ```bash
 cd web
-cp .env.example .env.local   # set DATABASE_URL, AUTH_SECRET, Gateway auth
+cp .env.example .env.local   # set DATABASE_URL, AUTH_SECRET, AWS_REGION
 npm install
 npm run db:push
 npm run ingest -- --limit 20
@@ -161,13 +161,13 @@ Apply schema: `cd web && npm run db:push`.
 |-------|--------|
 | UI / API | Next.js 16 App Router, React 19, TypeScript |
 | Chat | Vercel AI SDK v6 (`useChat`, `streamText`, `embed`, `rerank`) |
-| Models | Vercel AI Gateway `provider/model` strings |
-| Embed / rerank | `voyage/voyage-3-large`, `voyage/rerank-2.5` |
-| Database | Neon Postgres + pgvector, Drizzle ORM |
+| Models | AWS Bedrock via `@ai-sdk/amazon-bedrock` (`BEDROCK_MODEL_ID`, default `anthropic.claude-3-haiku-20240307-v1:0`) |
+| Embed / rerank | `amazon.titan-embed-text-v2:0` (1024 dims), `amazon.rerank-v1:0` |
+| Database | Postgres + pgvector, Drizzle ORM |
 | Auth | Auth.js credentials |
 | Hosting | Vercel project `datagovai-web` |
 
-Gateway calls on Vercel use platform auth automatically. Do **not** put `VERCEL_OIDC_TOKEN` or `AI_GATEWAY_API_KEY` in production env. Locally, copy them into `web/.env.local` (`vercel env pull` or an existing OIDC token) so ingest and `next dev` can call the Gateway.
+Bedrock calls authenticate with SigV4 via the standard AWS credential chain (env keys, `AWS_PROFILE`, or an EC2 instance role). Set `AWS_REGION` (default `us-east-1`) and make sure the Bedrock models above are enabled for the account in that region. Switching the embedding model requires re-ingesting all documents.
 
 ---
 
@@ -192,11 +192,11 @@ DataGovAI/
 
 ## Run locally
 
-Need: Node 20+, a Neon `DATABASE_URL` with pgvector, and Gateway credentials in `web/.env.local`.
+Need: Node 20+, a Postgres `DATABASE_URL` with the pgvector extension (`CREATE EXTENSION IF NOT EXISTS vector;`), and AWS credentials with Bedrock access.
 
 ```bash
 cd web
-cp .env.example .env.local    # fill DATABASE_URL, AUTH_SECRET, Gateway token
+cp .env.example .env.local    # fill DATABASE_URL, AUTH_SECRET, AWS_REGION
 npm install
 npm run db:push
 npm run ingest -- --limit 20
@@ -218,13 +218,16 @@ Open the URL Next prints (often http://localhost:3000). Local sign-in shortcut: 
 
 | Variable | Purpose |
 |----------|---------|
-| `DATABASE_URL` | Neon connection string for `datagovai` |
+| `DATABASE_URL` | Postgres connection string for `datagovai` (pgvector extension required) |
 | `AUTH_SECRET` | JWT signing secret |
 | `AUTH_URL` | App origin (`http://localhost:3000` locally) |
 | `ENABLE_DEV_LOGIN` | Local `admin`/`admin` shortcut (ignored in production) |
 | `ADMIN_EMAILS` | Admin email list |
 | `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` | Optional overrides for `npm run seed:admin` (defaults: `admin@datagovai.local` / `grsdemo`) |
-| `VERCEL_OIDC_TOKEN` / `AI_GATEWAY_API_KEY` | Local Gateway auth only |
+| `AWS_REGION` | Bedrock region (default `us-east-1`) |
+| `BEDROCK_MODEL_ID` | Chat model (default `anthropic.claude-3-haiku-20240307-v1:0`) |
+| `BEDROCK_EMBEDDING_MODEL_ID` | Embedding model (default `amazon.titan-embed-text-v2:0`; re-ingest if changed) |
+| `BEDROCK_RERANK_MODEL_ID` | Rerank model (default `amazon.rerank-v1:0`; optional — falls back to merge order) |
 
 Never commit `.env.local`.
 

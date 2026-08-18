@@ -1,5 +1,5 @@
 /**
- * Ingest Utah GRS PDFs from data/raw into Neon document_chunks.
+ * Ingest Utah GRS PDFs from data/raw into Postgres document_chunks.
  *
  *   npm run ingest -- --limit 20
  *   npm run ingest -- --pdf ../data/raw/council-minutes-(GRS-19978).pdf

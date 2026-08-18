@@ -17,8 +17,9 @@
     "smoke": "tsx scripts/smoke-rag.ts"
   },
   "dependencies": {
+    "@ai-sdk/amazon-bedrock": "^4.0.155",
     "@ai-sdk/react": "^3.0.170",
-    "@neondatabase/serverless": "^1.1.0",
+    "@aws-sdk/credential-providers": "^3.1113.0",
     "ai": "^6.0.168",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
@@ -39,7 +40,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
-    "pg": "^8.21.0",
+    "pg": "^8.23.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.2",
     "typescript": "^5"

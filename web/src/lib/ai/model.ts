@@ -1,11 +1,18 @@
-/** All model calls use AI Gateway `provider/model` strings. */
+import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
+import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 
-export const PRIMARY_MODEL = "openai/gpt-4o-mini" as const;
+/**
+ * All model calls go to AWS Bedrock. Auth is SigV4 via the standard AWS
+ * credential chain (env keys, shared profile, or instance role).
+ */
+export const bedrock = createAmazonBedrock({
+  region: process.env.AWS_REGION ?? "us-east-1",
+  credentialProvider: fromNodeProviderChain(),
+});
 
-export const FALLBACK_MODELS = [
-  "openai/gpt-4o-mini",
-  "anthropic/claude-haiku-4.5",
-  "google/gemini-2.5-flash",
-] as const;
+export const PRIMARY_MODEL_ID =
+  process.env.BEDROCK_MODEL_ID ?? "anthropic.claude-3-haiku-20240307-v1:0";
+
+export const PRIMARY_MODEL = bedrock(PRIMARY_MODEL_ID);
 
 export const TEMPERATURE = 0.2;
