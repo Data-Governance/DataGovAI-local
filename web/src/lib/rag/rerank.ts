@@ -1,6 +1,6 @@
 import { rerank as aiRerank } from "ai";
 
-import { bedrock } from "@/lib/ai/model";
+import { LLM_PROVIDER, bedrock } from "@/lib/ai/model";
 import { logger } from "@/lib/logger";
 
 export type RerankResult = { index: number; score: number };
@@ -20,12 +20,14 @@ function mergeOrderFallback(documents: string[]): RerankResult[] {
  * Reranking via AWS Bedrock. Any failure (rate limit, timeout, model
  * unavailable or not enabled in this region) degrades to merge order —
  * reranking is a quality enhancement, never a hard requirement for chat.
+ * In ollama mode there is no reranker; merge order is used directly.
  */
 export async function rerank(
   query: string,
   documents: string[],
 ): Promise<RerankResult[]> {
   if (documents.length === 0) return [];
+  if (LLM_PROVIDER === "ollama") return mergeOrderFallback(documents);
   try {
     const { ranking } = await aiRerank({
       model: RERANK_MODEL,

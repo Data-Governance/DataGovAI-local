@@ -161,13 +161,17 @@ Apply schema: `cd web && npm run db:push`.
 |-------|--------|
 | UI / API | Next.js 16 App Router, React 19, TypeScript |
 | Chat | Vercel AI SDK v6 (`useChat`, `streamText`, `embed`, `rerank`) |
-| Models | AWS Bedrock via `@ai-sdk/amazon-bedrock` (`BEDROCK_MODEL_ID`, default `anthropic.claude-3-haiku-20240307-v1:0`) |
-| Embed / rerank | `amazon.titan-embed-text-v2:0` (1024 dims), `amazon.rerank-v1:0` |
+| Models | `LLM_PROVIDER=bedrock` (default): AWS Bedrock via `@ai-sdk/amazon-bedrock` (`BEDROCK_MODEL_ID`, default `anthropic.claude-3-haiku-20240307-v1:0`); `LLM_PROVIDER=ollama`: local Ollama via its OpenAI-compatible endpoint (`OLLAMA_CHAT_MODEL`, default `llama3.1:8b`) |
+| Embed / rerank | bedrock: `amazon.titan-embed-text-v2:0` (1024 dims) + `amazon.rerank-v1:0`; ollama: `mxbai-embed-large` (1024 dims), no reranker (merge order) |
 | Database | Postgres + pgvector, Drizzle ORM |
 | Auth | Auth.js credentials |
 | Hosting | Vercel project `datagovai-web` |
 
-Bedrock calls authenticate with SigV4 via the standard AWS credential chain (env keys, `AWS_PROFILE`, or an EC2 instance role). Set `AWS_REGION` (default `us-east-1`) and make sure the Bedrock models above are enabled for the account in that region. Switching the embedding model requires re-ingesting all documents.
+Bedrock calls authenticate with SigV4 via the standard AWS credential chain (env keys, `AWS_PROFILE`, or an EC2 instance role). Set `AWS_REGION` (default `us-east-1`) and make sure the Bedrock models above are enabled for the account in that region.
+
+`LLM_PROVIDER=ollama` runs fully local instead (no AWS needed): install Ollama, `ollama serve`, then `ollama pull llama3.1:8b` (~4.9 GB) and `ollama pull mxbai-embed-large` (~670 MB). `mxbai-embed-large` outputs 1024 dims to match the `vector(1024)` column — do not substitute `nomic-embed-text` (768 dims).
+
+**Switching the embedding model — including switching providers — requires re-ingesting all documents** (embedding spaces don't mix).
 
 ---
 
@@ -224,10 +228,14 @@ Open the URL Next prints (often http://localhost:3000). Local sign-in shortcut: 
 | `ENABLE_DEV_LOGIN` | Local `admin`/`admin` shortcut (ignored in production) |
 | `ADMIN_EMAILS` | Admin email list |
 | `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` | Optional overrides for `npm run seed:admin` (defaults: `admin@datagovai.local` / `grsdemo`) |
+| `LLM_PROVIDER` | `bedrock` (default) or `ollama` |
 | `AWS_REGION` | Bedrock region (default `us-east-1`) |
 | `BEDROCK_MODEL_ID` | Chat model (default `anthropic.claude-3-haiku-20240307-v1:0`) |
 | `BEDROCK_EMBEDDING_MODEL_ID` | Embedding model (default `amazon.titan-embed-text-v2:0`; re-ingest if changed) |
 | `BEDROCK_RERANK_MODEL_ID` | Rerank model (default `amazon.rerank-v1:0`; optional — falls back to merge order) |
+| `OLLAMA_BASE_URL` | Ollama endpoint (default `http://localhost:11434`) |
+| `OLLAMA_CHAT_MODEL` | Ollama chat model (default `llama3.1:8b`) |
+| `OLLAMA_EMBED_MODEL` | Ollama embedding model (default `mxbai-embed-large`, 1024 dims; re-ingest if changed) |
 
 Never commit `.env.local`.
 
