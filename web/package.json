@@ -13,6 +13,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "ingest": "tsx scripts/ingest.ts",
+    "sweep:archives": "tsx scripts/sweep-archives.ts",
     "seed:admin": "tsx scripts/seed-admin.ts",
     "smoke": "tsx scripts/smoke-rag.ts"
   },
