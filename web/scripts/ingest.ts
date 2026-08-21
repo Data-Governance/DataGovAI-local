@@ -1,15 +1,19 @@
 /**
- * Ingest Utah GRS PDFs from data/raw into Neon document_chunks.
+ * Ingest Utah GRS PDFs from data/raw into Postgres document_chunks.
+ * Also accepts .md/.txt files (e.g. from scripts/sweep-archives.ts), and
+ * --pdf may point at a directory (ingested recursively) — same chunking
+ * and source-id conventions either way.
  *
  *   npm run ingest -- --limit 20
  *   npm run ingest -- --pdf ../data/raw/council-minutes-(GRS-19978).pdf
+ *   npm run ingest -- --pdf ~/grs-corpus/archives-grs
  */
 import { config } from "dotenv";
 config({ path: ".env.local" });
 config();
 
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { eq, sql } from "drizzle-orm";
 import { PDFParse } from "pdf-parse";
@@ -45,7 +49,7 @@ function vectorSql(embedding: number[]) {
 }
 
 function parseSource(fileName: string): { sourceId: string; title: string } {
-  const stem = fileName.replace(/\.pdf$/i, "");
+  const stem = fileName.replace(/\.(pdf|md|markdown|txt)$/i, "");
   const match = stem.match(/\(GRS-(\d+)\)/i);
   const sourceId = match ? `GRS-${match[1]}` : stem.slice(0, 80);
   const title = stem.replace(/-\(GRS-\d+\)$/i, "").replace(/-/g, " ");
@@ -84,12 +88,20 @@ function flag(name: string): string | undefined {
   return i >= 0 && args[i + 1] ? args[i + 1] : undefined;
 }
 
+async function extractText(filePath: string): Promise<string> {
+  if (/\.(md|markdown|txt)$/i.test(filePath)) {
+    return readFileSync(filePath, "utf8");
+  }
+  const buffer = readFileSync(filePath);
+  const parser = new PDFParse({ data: buffer });
+  const { text } = await parser.getText();
+  return text;
+}
+
 async function ingestPdf(pdfPath: string) {
   const fileName = path.basename(pdfPath);
   const { sourceId, title } = parseSource(fileName);
-  const buffer = readFileSync(pdfPath);
-  const parser = new PDFParse({ data: buffer });
-  const { text } = await parser.getText();
+  const text = await extractText(pdfPath);
   if (!text || text.trim().length < 80) {
     console.warn(`Skip ${fileName}: extracted text too short`);
     return 0;
@@ -146,7 +158,19 @@ async function main() {
       console.error(`File not found: ${resolved}`);
       process.exit(1);
     }
-    files.push(resolved);
+    if (statSync(resolved).isDirectory()) {
+      const walk = (dir: string) => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const p = path.join(dir, entry.name);
+          if (entry.isDirectory()) walk(p);
+          else if (/\.(pdf|md|markdown|txt)$/i.test(entry.name)) files.push(p);
+        }
+      };
+      walk(resolved);
+      files.sort();
+    } else {
+      files.push(resolved);
+    }
   } else {
     if (!existsSync(rawDir)) {
       console.error(`Missing ${rawDir}`);

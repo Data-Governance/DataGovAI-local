@@ -3,7 +3,7 @@ config({ path: ".env.local" });
 config();
 
 import { generateText } from "ai";
-import { FALLBACK_MODELS, PRIMARY_MODEL } from "../src/lib/ai/model";
+import { PRIMARY_MODEL } from "../src/lib/ai/model";
 import { buildSystemPrompt } from "../src/lib/ai/system-prompt";
 import { formatRetrievedChunks, retrieveContext } from "../src/lib/rag/retrieve";
 
@@ -27,12 +27,6 @@ async function runOne(query: string, generate: boolean) {
     system: buildSystemPrompt(formatRetrievedChunks(retrieved)),
     prompt: query,
     temperature: 0.2,
-    providerOptions: {
-      gateway: {
-        models: [...FALLBACK_MODELS],
-        tags: ["app:datagovai", "feature:smoke"],
-      },
-    },
   });
   console.log("  answer:", text.slice(0, 240).replace(/\s+/g, " "));
   return retrieved.length > 0;

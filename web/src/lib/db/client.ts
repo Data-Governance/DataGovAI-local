@@ -1,6 +1,6 @@
 import { config } from "dotenv";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 
 import * as schema from "./schema";
 
@@ -17,10 +17,9 @@ if (!url && process.env.NODE_ENV !== "test") {
   );
 }
 
-export const db = drizzle(
-  neon(
-    url ||
-      "postgresql://placeholder:placeholder@placeholder.neon.tech/placeholder",
-  ),
-  { schema },
-);
+const pool = new Pool({
+  connectionString:
+    url || "postgresql://placeholder:placeholder@localhost:5432/placeholder",
+});
+
+export const db = drizzle(pool, { schema });
