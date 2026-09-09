@@ -161,15 +161,15 @@ Apply schema: `cd web && npm run db:push`.
 |-------|--------|
 | UI / API | Next.js 16 App Router, React 19, TypeScript |
 | Chat | Vercel AI SDK v6 (`useChat`, `streamText`, `embed`, `rerank`) |
-| Models | `LLM_PROVIDER=bedrock` (default): AWS Bedrock via `@ai-sdk/amazon-bedrock` (`BEDROCK_MODEL_ID`, default `anthropic.claude-3-haiku-20240307-v1:0`); `LLM_PROVIDER=ollama`: local Ollama via its OpenAI-compatible endpoint (`OLLAMA_CHAT_MODEL`, default `llama3.1:8b`) |
-| Embed / rerank | bedrock: `amazon.titan-embed-text-v2:0` (1024 dims) + `amazon.rerank-v1:0`; ollama: `mxbai-embed-large` (1024 dims), no reranker (merge order) |
+| Models | `LLM_PROVIDER=ollama` (default): Ollama via its OpenAI-compatible endpoint (`OLLAMA_BASE_URL`, `OLLAMA_CHAT_MODEL`, default `llama3.1:8b`); `LLM_PROVIDER=bedrock`: AWS Bedrock via `@ai-sdk/amazon-bedrock` (`BEDROCK_MODEL_ID`, default `anthropic.claude-3-haiku-20240307-v1:0`) — kept wired, currently blocked at the AWS org level |
+| Embed / rerank | ollama: `mxbai-embed-large` (1024 dims), no reranker (merge order); bedrock: `amazon.titan-embed-text-v2:0` (1024 dims) + `amazon.rerank-v1:0` |
 | Database | Postgres + pgvector, Drizzle ORM |
 | Auth | Auth.js credentials |
-| Hosting | Vercel project `datagovai-web` |
+| Hosting | Local Docker, or the opt-in `grsbot` compose profile in `dgo-infrastructure` (stage, port 8503) |
 
-Bedrock calls authenticate with SigV4 via the standard AWS credential chain (env keys, `AWS_PROFILE`, or an EC2 instance role). Set `AWS_REGION` (default `us-east-1`) and make sure the Bedrock models above are enabled for the account in that region.
+`LLM_PROVIDER=ollama` is the default and needs no AWS: point `OLLAMA_BASE_URL` at any Ollama server (local `ollama serve`, or a shared box on the network) that has `llama3.1:8b` (~4.9 GB) and `mxbai-embed-large` (~670 MB) pulled. `mxbai-embed-large` outputs 1024 dims to match the `vector(1024)` column — do not substitute `nomic-embed-text` (768 dims).
 
-`LLM_PROVIDER=ollama` runs fully local instead (no AWS needed): install Ollama, `ollama serve`, then `ollama pull llama3.1:8b` (~4.9 GB) and `ollama pull mxbai-embed-large` (~670 MB). `mxbai-embed-large` outputs 1024 dims to match the `vector(1024)` column — do not substitute `nomic-embed-text` (768 dims).
+`LLM_PROVIDER=bedrock` selects AWS Bedrock instead. Bedrock calls authenticate with SigV4 via the standard AWS credential chain (env keys, `AWS_PROFILE`, or an EC2 instance role); set `AWS_REGION` (default `us-east-1`) and enable the Bedrock models above for the account in that region. **Runtime model invocation is currently refused for this account at the AWS organization level**, which is why ollama is the default; the Bedrock wiring is untouched and becomes the default again with one env change once that is lifted.
 
 **Switching the embedding model — including switching providers — requires re-ingesting all documents** (embedding spaces don't mix).
 
@@ -196,22 +196,34 @@ DataGovAI/
 
 ## Run locally
 
-Need: Node 20+, a Postgres `DATABASE_URL` with the pgvector extension (`CREATE EXTENSION IF NOT EXISTS vector;`), and AWS credentials with Bedrock access.
+Need: Node 20+, a Postgres `DATABASE_URL` with the pgvector extension (`CREATE EXTENSION IF NOT EXISTS vector;`), and an Ollama server reachable at `OLLAMA_BASE_URL` with `llama3.1:8b` and `mxbai-embed-large` pulled (or, with `LLM_PROVIDER=bedrock`, AWS credentials with Bedrock access).
 
 ```bash
 cd web
-cp .env.example .env.local    # fill DATABASE_URL, AUTH_SECRET, AWS_REGION
+cp .env.example .env.local    # fill DATABASE_URL, AUTH_SECRET, OLLAMA_BASE_URL
 npm install
 npm run db:push
-npm run ingest -- --limit 20
+npm run sweep:archives        # pull the current Utah Archives GRS series
+npm run ingest -- --pdf ~/grs-corpus
 npm run seed:admin
 npm run dev
+```
+
+A throwaway pgvector Postgres for that `DATABASE_URL`:
+
+```bash
+docker run -d --name grsbot-pg -e POSTGRES_PASSWORD=grsbot -e POSTGRES_DB=datagovai \
+  -p 55433:5432 pgvector/pgvector:pg16
+docker exec grsbot-pg psql -U postgres -d datagovai -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+# DATABASE_URL=postgresql://postgres:grsbot@localhost:55433/datagovai
 ```
 
 Open the URL Next prints (often http://localhost:3000). Local sign-in shortcut: `admin` / `admin`.
 
 | Command | Purpose |
 |---------|---------|
+| `npm run sweep:archives` | Pull current GRS series from the Utah Archives Solr endpoint into the corpus dir |
+| `npm run ingest -- --pdf ~/grs-corpus` | Embed a whole corpus directory (`.pdf`, `.md`, `.txt`, recursive) |
 | `npm run ingest -- --limit 20` | Embed preferred PDFs from `../data/raw` |
 | `npm run ingest -- --pdf ../data/raw/<file>.pdf` | One series |
 | `npm run seed:admin` | Create/update admin user |
@@ -228,14 +240,17 @@ Open the URL Next prints (often http://localhost:3000). Local sign-in shortcut: 
 | `ENABLE_DEV_LOGIN` | Local `admin`/`admin` shortcut (ignored in production) |
 | `ADMIN_EMAILS` | Admin email list |
 | `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` | Optional overrides for `npm run seed:admin` (defaults: `admin@datagovai.local` / `grsdemo`) |
-| `LLM_PROVIDER` | `bedrock` (default) or `ollama` |
-| `AWS_REGION` | Bedrock region (default `us-east-1`) |
+| `LLM_PROVIDER` | `ollama` (default) or `bedrock` |
+| `AWS_REGION` | Bedrock region (default `us-east-1`; bedrock mode only) |
 | `BEDROCK_MODEL_ID` | Chat model (default `anthropic.claude-3-haiku-20240307-v1:0`) |
 | `BEDROCK_EMBEDDING_MODEL_ID` | Embedding model (default `amazon.titan-embed-text-v2:0`; re-ingest if changed) |
 | `BEDROCK_RERANK_MODEL_ID` | Rerank model (default `amazon.rerank-v1:0`; optional — falls back to merge order) |
 | `OLLAMA_BASE_URL` | Ollama endpoint (default `http://localhost:11434`) |
 | `OLLAMA_CHAT_MODEL` | Ollama chat model (default `llama3.1:8b`) |
 | `OLLAMA_EMBED_MODEL` | Ollama embedding model (default `mxbai-embed-large`, 1024 dims; re-ingest if changed) |
+| `ARCHIVES_SOLR_URL` | Override the Utah Archives Solr endpoint used by `sweep:archives` |
+| `GRSBOT_CORPUS_DIR` | Corpus root: `sweep:archives` writes `<root>/archives-grs`, ingest is pointed at `<root>` (default `~/grs-corpus`) |
+| `GRSBOT_DTS_CORPUS_DIR` | DTS corpus hook — ingested by the weekly job when set. Not wired to a source yet (source list still open). |
 
 Never commit `.env.local`.
 

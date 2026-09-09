@@ -110,13 +110,27 @@ function seriesMarkdown(d: GrsDoc): string {
   return parts.join("\n\n") + "\n";
 }
 
-async function main() {
-  const dir = path.resolve(
-    (flag("dir") ?? path.join(os.homedir(), "grs-corpus", "archives-grs")).replace(
-      /^~(?=\/)/,
-      os.homedir(),
-    ),
+function expandHome(p: string): string {
+  return p.replace(/^~(?=\/|$)/, os.homedir());
+}
+
+/**
+ * Output directory: --dir wins, else <GRSBOT_CORPUS_DIR>/archives-grs, else
+ * ~/grs-corpus/archives-grs. GRSBOT_CORPUS_DIR is the whole corpus root that
+ * ingest is pointed at (`npm run ingest -- --pdf $GRSBOT_CORPUS_DIR`), so the
+ * sweep keeps its own subdirectory under it.
+ */
+function outputDir(): string {
+  const explicit = flag("dir");
+  if (explicit) return path.resolve(expandHome(explicit));
+  const root = expandHome(
+    process.env.GRSBOT_CORPUS_DIR || path.join(os.homedir(), "grs-corpus"),
   );
+  return path.resolve(path.join(root, "archives-grs"));
+}
+
+async function main() {
+  const dir = outputDir();
   mkdirSync(dir, { recursive: true });
 
   const url = `${SOLR_URL}?wt=json&rows=1000&facet=off&hl=off&fl=${encodeURIComponent(FIELDS)}`;

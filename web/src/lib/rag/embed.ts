@@ -5,9 +5,9 @@ import { LLM_PROVIDER, bedrock, ollama } from "@/lib/ai/model";
 /**
  * Embeddings follow LLM_PROVIDER:
  *
+ * ollama (default) — mxbai-embed-large (1024 dims; do NOT swap in
+ *           nomic-embed-text, it outputs 768).
  * bedrock — amazon.titan-embed-text-v2:0 (1024 dims by default).
- * ollama  — mxbai-embed-large (1024 dims; do NOT swap in nomic-embed-text,
- *           it outputs 768).
  *
  * Both match the vector(1024) column on document_chunks, so no schema
  * change either way. Switching the embedding model (including switching

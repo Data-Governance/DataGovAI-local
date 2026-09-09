@@ -11,16 +11,20 @@ if (!process.env.LLM_PROVIDER) {
 }
 
 /**
- * Provider switch: LLM_PROVIDER=bedrock (default) or ollama.
+ * Provider switch: LLM_PROVIDER=ollama (default) or bedrock.
+ *
+ * ollama (default) — an Ollama server reached through its OpenAI-compatible
+ * /v1 endpoint (OLLAMA_BASE_URL). This is the shipping path: Bedrock model
+ * invocation is blocked at the AWS organization level for this account
+ * (register item BEDROCK-ENABLE-1), so the Bedrock target cannot run.
  *
  * bedrock — AWS Bedrock, SigV4 via the standard AWS credential chain
- * (env keys, shared profile, or instance role).
- *
- * ollama — local Ollama through its OpenAI-compatible /v1 endpoint.
- * Deadline fallback while Bedrock model access is pending.
+ * (env keys, shared profile, or instance role). Kept wired and selectable
+ * so it becomes the default again with one env change once the org unblocks
+ * model access; nothing about it was removed.
  */
 export const LLM_PROVIDER =
-  process.env.LLM_PROVIDER === "ollama" ? "ollama" : "bedrock";
+  process.env.LLM_PROVIDER === "bedrock" ? "bedrock" : "ollama";
 
 export const bedrock = createAmazonBedrock({
   region: process.env.AWS_REGION ?? "us-east-1",
