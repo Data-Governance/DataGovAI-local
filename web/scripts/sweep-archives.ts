@@ -14,7 +14,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 config();
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -151,6 +151,7 @@ async function main() {
   }
 
   let written = 0;
+  const writtenNames = new Set<string>();
   for (const d of docs) {
     const dispAuth = d.grsItemDispAuth;
     if (!dispAuth || !/^GRS-\d+$/.test(dispAuth)) {
@@ -159,9 +160,53 @@ async function main() {
     }
     const name = `${slug(d.grsItemTitle ?? d.id)}-(${dispAuth}).md`;
     writeFileSync(path.join(dir, name), seriesMarkdown(d));
+    writtenNames.add(name);
     written++;
   }
   console.log(`Wrote ${written} series file(s) to ${dir}`);
+
+  pruneStaleSeriesFiles(dir, writtenNames, written);
+}
+
+/**
+ * Delete series files left behind by an EARLIER sweep that this sweep did not
+ * rewrite. A series' file name embeds its title slug, so a title change in the
+ * Archives catalog produces a NEW file and orphans the old one — and both
+ * carry the same `(GRS-<n>)` id. ingest.ts keys on that id with
+ * delete-then-insert and walks files in sort order, so whichever name sorts
+ * later wins the row: a stale file can silently overwrite the fresh one and
+ * regress a citation's retention text after a sweep that reported success.
+ *
+ * Safety, in order:
+ *  - Only runs after the Solr fetch succeeded (a failed fetch throws above and
+ *    never reaches here), so a bad request can never empty the corpus.
+ *  - Refuses to prune when this sweep wrote nothing, so a degenerate but
+ *    HTTP-200 response (zero docs) also cannot empty the corpus.
+ *  - Only considers files matching this script's own naming convention
+ *    (`*-(GRS-<n>).md`). Hand-dropped PDFs, notes, the weekly job's
+ *    `.last-sweep` stamp, and anything else in the corpus are never touched.
+ */
+function pruneStaleSeriesFiles(
+  dir: string,
+  writtenNames: Set<string>,
+  written: number,
+): void {
+  if (written === 0) {
+    console.warn("Nothing written — skipping prune so the corpus is never emptied.");
+    return;
+  }
+
+  const owned = /-\(GRS-\d+\)\.md$/i;
+  let removed = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    if (!owned.test(entry.name)) continue;
+    if (writtenNames.has(entry.name)) continue;
+    unlinkSync(path.join(dir, entry.name));
+    console.log(`Pruned stale series file: ${entry.name}`);
+    removed++;
+  }
+  console.log(`Pruned ${removed} stale series file(s).`);
 }
 
 main().catch((e) => {
