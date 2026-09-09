@@ -1,7 +1,7 @@
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
 import { auth } from "@/auth";
-import { FALLBACK_MODELS, PRIMARY_MODEL, TEMPERATURE } from "@/lib/ai/model";
+import { PRIMARY_MODEL, TEMPERATURE } from "@/lib/ai/model";
 import { buildSystemPrompt } from "@/lib/ai/system-prompt";
 import { db } from "@/lib/db/client";
 import { conversations, messages as messagesTable } from "@/lib/db/schema";
@@ -49,12 +49,6 @@ export async function POST(req: Request) {
       system,
       messages: await convertToModelMessages(messages),
       temperature: TEMPERATURE,
-      providerOptions: {
-        gateway: {
-          models: [...FALLBACK_MODELS],
-          tags: ["app:datagovai", "feature:grs-rag"],
-        },
-      },
     });
   } catch (err) {
     logger.error({ err }, "stream.init_failed");

@@ -1,10 +1,13 @@
 import { rerank as aiRerank } from "ai";
 
+import { LLM_PROVIDER, bedrock } from "@/lib/ai/model";
 import { logger } from "@/lib/logger";
 
 export type RerankResult = { index: number; score: number };
 
-const RERANK_MODEL = "voyage/rerank-2.5";
+const RERANK_MODEL = bedrock.reranking(
+  process.env.BEDROCK_RERANK_MODEL_ID ?? "amazon.rerank-v1:0",
+);
 
 function mergeOrderFallback(documents: string[]): RerankResult[] {
   return documents.map((_, index) => ({
@@ -14,15 +17,17 @@ function mergeOrderFallback(documents: string[]): RerankResult[] {
 }
 
 /**
- * Voyage rerank-2 via AI Gateway. Any failure (rate limit, timeout, model
- * unavailable) degrades to merge order — reranking is a quality enhancement,
- * never a hard requirement for chat.
+ * Reranking via AWS Bedrock. Any failure (rate limit, timeout, model
+ * unavailable or not enabled in this region) degrades to merge order —
+ * reranking is a quality enhancement, never a hard requirement for chat.
+ * In ollama mode there is no reranker; merge order is used directly.
  */
 export async function rerank(
   query: string,
   documents: string[],
 ): Promise<RerankResult[]> {
   if (documents.length === 0) return [];
+  if (LLM_PROVIDER === "ollama") return mergeOrderFallback(documents);
   try {
     const { ranking } = await aiRerank({
       model: RERANK_MODEL,
